@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.local
+
+# Node/n8n
+node_modules/
+.n8n/
+.cache/
+
+# Docker
+qdrant_storage/
+postgres_data/
+openwa_data/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Sensitive
+*.key
+*.pem
+credentials.json
