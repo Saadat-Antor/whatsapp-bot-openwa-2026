@@ -20,12 +20,13 @@
 - ✅ `README.md` created
 
 ## Phase 2 — Infrastructure Setup
-- ⏳ `docker-compose.yml` (OpenWA + PostgreSQL usage, shared network config)
-- ⏳ `.env` / `.env.example`
-- ⏳ `config/openwa.env`, `config/postgres.env`
-- ⏳ `scripts/init-db.sql` (isolated DB user/database creation)
-- ⏳ `scripts/setup.sh` (bootstrap script)
-- ⏳ Shared Docker network created and verified between this project and existing `project-a` containers
+- ✅ `docker-compose.yml` (OpenWA + PostgreSQL usage, shared network config)
+- ✅ `.env` / `.env.example`
+- ✅ `scripts/init-db.sql` (isolated DB user/database creation)
+- ✅ `scripts/setup.sh` (bootstrap script)
+- ⏳ `config/openwa.env`, `config/postgres.env` (Deferred/Skipped: using standard .env injection instead)
+- 🔄 Shared Docker network created and verified between this project and existing `project-a` containers (Pending owner manual execution)
+- 🔄 Run DB initialization on existing Postgres container (Pending owner manual execution)
 
 ## Phase 3 — Knowledge Base Prep
 - ⏳ Confirm CSV/DOCX column structure and format with owner
@@ -55,9 +56,8 @@
 None.
 
 ## Immediate Next Step
-Get owner's explicit go-ahead to begin Phase 2 (infrastructure setup: docker-compose.yml, env files, DB init scripts).
+Owner must run `scripts/setup.sh`, execute `scripts/init-db.sql` on the chosen existing Postgres container, and verify the `shared-network` is operational. Then proceed to Phase 3.
 
 ## Key Open Questions (Owner Input Needed)
 - Exact column headers/format of the CSV knowledge base files
 - Exact structure of the DOCX knowledge base files (single doc vs. multiple sections)
-- Which existing PostgreSQL instance (of the 2 already running) should host the new isolated `openwa_bot` database — or should it be a fresh dedicated instance?

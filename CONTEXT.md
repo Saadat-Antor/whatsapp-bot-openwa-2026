@@ -31,7 +31,8 @@ The bot should behave like an intelligent, context-aware customer support agent 
   - **2 PostgreSQL instances** (different purposes)
   - **1 n8n instance**
 - This new project (**whatsapp-bot-openwa**) must **coexist cleanly** with that existing infrastructure — not disrupt it.
-- Decision: new project gets its **own root directory and its own `docker-compose.yml`**, but can interoperate with existing containers via a **shared Docker network** when needed.
+- Decision: new project gets its **own root directory and its own `docker-compose.yml`**. 
+- **CRITICAL:** This project deliberately avoids running duplicate PostgreSQL and n8n containers. It interfaces with the existing instances via a **shared Docker network** (`shared-network`) created manually by the owner.
 
 ---
 
@@ -43,8 +44,8 @@ The bot should behave like an intelligent, context-aware customer support agent 
 | Workflow engine | n8n | Owner already has n8n experience/instance |
 | Vector store | **PostgreSQL + pgvector** (not Qdrant) | Knowledge base expected to stay under ~5,000 documents; avoids adding another Docker image; reuses Postgres expertise already on hand |
 | Conversation history storage | **PostgreSQL** | Persistent, queryable, easy to back up |
-| Project isolation | Separate root dir (`whatsapp-bot-openwa/`), separate `docker-compose.yml`, **shared Docker network** for cross-project communication | Keeps projects independently manageable while still able to talk to existing n8n/Postgres if needed |
-| Database security | **Isolated DB user strategy**: separate database + separate PostgreSQL user per project; each user scoped only to its own database; strong unique passwords | Prevents one project's compromised credentials from exposing another project's data, even on a shared Postgres instance |
+| Project isolation | Separate root dir (`whatsapp-bot-openwa/`), separate `docker-compose.yml`, **shared Docker network** for cross-project communication | Keeps projects independently manageable while still able to talk to existing n8n/Postgres |
+| Database security | **Isolated DB user strategy**: separate database + separate PostgreSQL user for the bot; strong unique passwords | Prevents one project's compromised credentials from exposing another project's data, even on a shared Postgres instance |
 | n8n workflows | **Three workflows** (see below) | Clean separation of concerns: ingestion vs. logging vs. live chat handling |
 
 > Note: Earlier discussion explored Qdrant as a dedicated vector DB. Final decision is **pgvector on PostgreSQL**, conditional on the KB staying under ~5,000 documents. If the KB grows significantly beyond that, revisit Qdrant.
@@ -75,43 +76,12 @@ The bot should behave like an intelligent, context-aware customer support agent 
 
 - **Send message:** `POST /api/sessions/{sessionId}/messages/send-text` with body `{ chatId, text }`, header `X-API-Key: <operator-role key>`
 - **Incoming webhook payload:**
-  ```
+  ```json
   {
     "event": "message.received",
     "timestamp": "...",
     "sessionId": "...",
     "idempotencyKey": "...",
     "deliveryId": "...",
-    "data": { "id": "...", "chatId": "...", "from": "...", "body": "...", "type": "text", "timestamp": ... }
+    "data": { "id": "...", "chatId": "...", "from": "...", "body": "...", "type": "text", "timestamp": 1234567890 }
   }
-  ```
-- Webhooks are HMAC-SHA256 signed (`X-OpenWA-Signature` header) when a secret is configured — should be verified.
-- Default webhook timeout is 10s with retries — the n8n webhook trigger should respond immediately (ack) and process asynchronously to avoid timeout/retry storms.
-
----
-
-## Repository & Git Workflow
-
-- GitHub repo already created for `whatsapp-bot-openwa` (private repo).
-- **Two-branch strategy only** — `dev` and `main`. **No feature branches.**
-- Owner works on `dev`; merges to `main` when a set of changes is stable/production-ready.
-- Commit convention: `[TYPE] Description`, e.g. `[SETUP]`, `[FEATURE]`, `[FIX]`, `[DOCS]`.
-- After each meaningful step, the AI assistant should prompt the owner with **exact git commands** to run (add/commit/push), not just describe them.
-- Branch protection on `main` is planned but deferred until both branches exist remotely.
-
----
-
-## Working Agreement With the Owner
-
-- **Do not write code or create files without explicit permission at each step.** The owner prefers a deliberate, step-by-step pace and gives explicit go-aheads (e.g., "start with phase 1").
-- Architecture decisions should be finalized and agreed upon **before** implementation begins (this has been done — see table above).
-- After code/files are generated, always provide the **exact git commands + commit message** for that step.
-- Tracking files (`CONTEXT.md`, `PROJECT_STATE.md`, `CHANGELOG.md`) are a deliberate strategy to minimize token usage in future AI handoffs — keep them updated and concise rather than duplicating full history in every session.
-
----
-
-## Where to Look Next
-
-- **Current status / what's done vs. pending:** see `PROJECT_STATE.md`
-- **Full history of decisions and changes with dates:** see `CHANGELOG.md`
-- **Setup instructions:** see `README.md` and `docs/SETUP.md` (once created)
