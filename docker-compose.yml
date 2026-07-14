@@ -1,0 +1,53 @@
+# =============================================================================
+# whatsapp-bot-openwa — docker-compose.yml
+# =============================================================================
+# This project deliberately does NOT run its own PostgreSQL or n8n container.
+# - PostgreSQL: reuses one of the owner's EXISTING PostgreSQL instances
+#   (from the separate "project-a" stack) via an isolated database + user
+#   (see scripts/init-db.sql). This avoids running a duplicate DB container.
+# - n8n: reuses the owner's EXISTING n8n instance for the same reason.
+#
+# For the containers below to reach the existing Postgres/n8n containers
+# (and vice versa), both this compose file and the existing project's
+# compose file must attach their services to the SAME external Docker
+# network. Create it once, manually, before running this file:
+#
+#     docker network create shared-network
+#
+# Then add the following to the EXISTING project's docker-compose.yml
+# (for the Postgres service you choose to reuse, and for n8n):
+#
+#     networks:
+#       - shared-network
+#
+#   ...and at the bottom of that file:
+#
+#     networks:
+#       shared-network:
+#         external: true
+# =============================================================================
+
+services:
+  openwa:
+    image: ghcr.io/rmyndharis/openwa:latest
+    container_name: openwa-bot
+    restart: unless-stopped
+    ports:
+      - "${OPENWA_PORT:-2785}:2785"
+    environment:
+      NODE_ENV: production
+      # Points at the EXISTING Postgres container (on the shared network),
+      # using the isolated database + user created by scripts/init-db.sql.
+      DATABASE_URL: "postgresql://${OPENWA_DB_USER}:${OPENWA_DB_PASSWORD}@${EXISTING_POSTGRES_HOST}:${EXISTING_POSTGRES_PORT:-5432}/${OPENWA_DB_NAME}"
+      # MCP surface off by default — not needed for this project.
+      MCP_ENABLED: "false"
+      # Dashboard + API share the same port (bundled).
+    volumes:
+      - ./data/openwa:/app/data
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
+    name: ${SHARED_NETWORK_NAME:-shared-network}
