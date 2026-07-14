@@ -35,3 +35,6 @@ Thumbs.db
 *.key
 *.pem
 n8n/workflows/credentials.json
+
+# Ignore generated database scripts containing secrets
+scripts/init-db.sql
