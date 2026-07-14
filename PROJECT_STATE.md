@@ -27,9 +27,11 @@
 - ✅ Run DB initialization on existing Postgres container 
 
 ## Phase 3 — Knowledge Base Prep
-- 🔄 Confirm CSV column structure with owner
+- ✅ Confirm CSV column structures with owner
+- ✅ Create `customer_qnas.csv` with mock data
+- ✅ Create `product_info.csv` with mock data
+- ✅ Create `order_data.csv` with mock data
 - ✅ DOCX support deferred to future phase
-- ⏳ Placeholder files in `data/kb/`
 
 ## Phase 4 — n8n Workflows
 - ⏳ Workflow 1: KB Ingestion (scheduled)
@@ -55,7 +57,7 @@
 None.
 
 ## Immediate Next Step
-Finalize the exact column headers for the CSV knowledge base to prepare for the n8n ingestion workflow.
+Get owner's explicit go-ahead to begin Phase 4 (n8n Workflows construction).
 
 ## Key Open Questions (Owner Input Needed)
-- What are the final column headers for the CSV file?
+None for this phase.

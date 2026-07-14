@@ -87,3 +87,40 @@
 ### Added
 - Created project root directory structure: `whatsapp-bot-openwa/`
 - Created `CONTEXT.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `.gitignore`, and `README.md`
+
+# CHANGELOG.md
+
+> Dated log of decisions, changes, and rationale. Newest entries at the top. Keep entries concise — full context lives in `CONTEXT.md`.
+
+---
+
+## [2026-07-15] — Phase 3: Knowledge Base Prep
+### Added
+- `data/kb/customer_qnas.csv`: Mock QnA data file structured with standard fields (`Category`, `Question`, `Answer`, `Reference_URL`).
+- `data/kb/product_info.csv`: Structured product catalog dataset for catalog lookups.
+- `data/kb/order_data.csv`: Transactional mock data mapped by customer phone numbers to facilitate live order tracking tests.
+
+### Removed
+- `data/kb/kb_placeholder.csv`: Replaced by specific functional mock files.
+
+### Decisions Finalized
+- **Expanded Scope:** Expanded initial CSV structures to include dedicated product catalog tables and order tracking datasets to allow complex agent routing.
+
+---
+
+## [2026-07-15] — Phase 2: Infrastructure Setup
+### Added
+- Updated `docker-compose.yml` to securely map the `OPENWA_API_KEY` from the `.env` file into the OpenWA container environment, replacing auto-generated credentials.
+- `docker-compose.yml` and `.env.example`: Configured to use a shared Docker network (`shared-network`) to route to the owner's existing PostgreSQL and n8n containers, avoiding duplicate instances.
+- `scripts/init-db.template.sql`: SQL template to create an isolated database (`openwa_bot_db`), a restricted user, and enable the `pgvector` extension.
+- `scripts/setup.sh`: Bash script to bootstrap local volume directories, set permissions, and securely generate `init-db.sql` using environment variables.
+
+### Status
+- Phase 2 infrastructure deployment and verification complete.
+
+---
+
+## [2026-07-14] — Phase 1: Foundation & Tracking Files
+### Added
+- Created project root directory structure: `whatsapp-bot-openwa/`
+- Created `CONTEXT.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `.gitignore`, and `README.md`
