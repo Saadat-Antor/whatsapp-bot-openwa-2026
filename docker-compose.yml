@@ -41,7 +41,8 @@ services:
       DATABASE_URL: "postgresql://${OPENWA_DB_USER}:${OPENWA_DB_PASSWORD}@${EXISTING_POSTGRES_HOST}:${EXISTING_POSTGRES_PORT:-5432}/${OPENWA_DB_NAME}"
       # MCP surface off by default — not needed for this project.
       MCP_ENABLED: "false"
-      # Dashboard + API share the same port (bundled).
+      # Maps the API key from your .env file into the container for secure access
+      OPENWA_API_KEY: "${OPENWA_API_KEY}"
     volumes:
       - ./data/openwa:/app/data
     networks:
