@@ -13,11 +13,11 @@
 
 ## Phase 1 — Foundation & Tracking Files
 - ✅ Directory structure finalized (`whatsapp-bot-openwa/`)
-- 🔄 `CONTEXT.md` created
-- 🔄 `PROJECT_STATE.md` created (this file)
-- ⏳ `CHANGELOG.md`
-- ⏳ `.gitignore`
-- ⏳ `README.md`
+- ✅ `CONTEXT.md` created
+- ✅ `PROJECT_STATE.md` created (this file)
+- ✅ `CHANGELOG.md` created
+- ✅ `.gitignore` created
+- ✅ `README.md` created
 
 ## Phase 2 — Infrastructure Setup
 - ⏳ `docker-compose.yml` (OpenWA + PostgreSQL usage, shared network config)
@@ -55,7 +55,7 @@
 None.
 
 ## Immediate Next Step
-Finish Phase 1 tracking files (`CHANGELOG.md`, `.gitignore`, `README.md`), then get owner's go-ahead for Phase 2 (infrastructure setup).
+Get owner's explicit go-ahead to begin Phase 2 (infrastructure setup: docker-compose.yml, env files, DB init scripts).
 
 ## Key Open Questions (Owner Input Needed)
 - Exact column headers/format of the CSV knowledge base files
