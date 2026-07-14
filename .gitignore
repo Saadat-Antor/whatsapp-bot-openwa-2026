@@ -1,19 +1,26 @@
-# Environment
+# Environment / secrets
 .env
 .env.local
+config/*.env
+!config/*.env.example
 
-# Node/n8n
+# Node / n8n
 node_modules/
 .n8n/
 .cache/
 
-# Docker
-qdrant_storage/
+# Docker volumes / persistent data
+data/openwa/*
+!data/openwa/.gitkeep
+data/n8n/*
+!data/n8n/.gitkeep
 postgres_data/
-openwa_data/
+qdrant_storage/
+qdrant_snapshots/
 
 # Logs
-logs/
+logs/*
+!logs/.gitkeep
 *.log
 
 # OS
@@ -24,7 +31,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Sensitive
+# Sensitive credentials / keys
 *.key
 *.pem
-credentials.json
+n8n/workflows/credentials.json
