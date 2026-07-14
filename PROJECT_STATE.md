@@ -2,7 +2,7 @@
 
 > Snapshot of current progress. Update this file after every meaningful step. Read `CONTEXT.md` first if you need background on *why* decisions were made.
 
-**Last updated:** 2026-07-14
+**Last updated:** 2026-07-15
 
 ---
 
@@ -22,14 +22,12 @@
 ## Phase 2 — Infrastructure Setup
 - ✅ `docker-compose.yml` (OpenWA + PostgreSQL usage, shared network config)
 - ✅ `.env` / `.env.example`
-- ✅ `scripts/init-db.sql` (isolated DB user/database creation)
-- ✅ `scripts/setup.sh` (bootstrap script)
-- ⏳ `config/openwa.env`, `config/postgres.env` (Deferred/Skipped: using standard .env injection instead)
-- 🔄 Shared Docker network created and verified between this project and existing `project-a` containers (Pending owner manual execution)
-- 🔄 Run DB initialization on existing Postgres container (Pending owner manual execution)
+- ✅ `scripts/init-db.template.sql` & `scripts/setup.sh` (secure DB init pattern)
+- ✅ Shared Docker network created and verified between this project and existing `project-a` containers
+- ✅ Run DB initialization on existing Postgres container 
 
 ## Phase 3 — Knowledge Base Prep
-- ⏳ Confirm CSV/DOCX column structure and format with owner
+- 🔄 Confirm CSV/DOCX column structure and format with owner
 - ⏳ Placeholder files in `data/kb/`
 
 ## Phase 4 — n8n Workflows
@@ -56,7 +54,7 @@
 None.
 
 ## Immediate Next Step
-Owner must run `scripts/setup.sh`, execute `scripts/init-db.sql` on the chosen existing Postgres container, and verify the `shared-network` is operational. Then proceed to Phase 3.
+Define the structure of the CSV and DOCX knowledge base files to prepare for n8n ingestion workflow generation.
 
 ## Key Open Questions (Owner Input Needed)
 - Exact column headers/format of the CSV knowledge base files
