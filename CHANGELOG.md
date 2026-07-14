@@ -25,3 +25,65 @@
 - [ ] Finish `.gitignore` and `README.md`
 - [ ] Owner: initialize local git repo, create `dev` branch, push to GitHub
 - [ ] Get go-ahead for Phase 2 (docker-compose.yml, env files, DB init scripts)
+
+
+# CHANGELOG.md
+
+> Dated log of decisions, changes, and rationale. Newest entries at the top. Keep entries concise — full context lives in `CONTEXT.md`.
+
+---
+
+## [2026-07-15] — Phase 2: Infrastructure Setup
+### Added
+- Updated `docker-compose.yml` to securely map the `OPENWA_API_KEY` from the `.env` file into the OpenWA container environment, replacing auto-generated credentials.
+- `docker-compose.yml` and `.env.example`: Configured to use a shared Docker network (`shared-network`) to route to the owner's existing PostgreSQL and n8n containers, avoiding duplicate instances.
+- `scripts/init-db.template.sql`: SQL template to create an isolated database (`openwa_bot_db`), a restricted user, and enable the `pgvector` extension.
+- `scripts/setup.sh`: Bash script to bootstrap local volume directories, set permissions, and securely generate `init-db.sql` using environment variables.
+
+### Status
+- Phase 2 infrastructure deployment and verification complete.
+
+---
+
+## [2026-07-14] — Phase 1: Foundation & Tracking Files
+### Added
+- Created project root directory structure: `whatsapp-bot-openwa/`
+- Created `CONTEXT.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `.gitignore`, and `README.md`
+
+### Decisions Finalized (carried over from planning discussion)
+- **Vector storage:** PostgreSQL + pgvector, not Qdrant.
+- **Conversation history:** PostgreSQL, persisted, queryable per `chatId`.
+- **Project isolation:** Separate root directory and separate `docker-compose.yml` from the owner's existing "project-a". Cross-project communication via a **shared Docker network**.
+- **Database security:** Isolated DB user strategy.
+- **n8n workflows:** Three workflows — KB Ingestion, WhatsApp Message Handler, Inline Conversation Logger.
+- **Git strategy:** Two branches only — `dev` and `main`. No feature branches.
+- **Working agreement:** No code/files generated without explicit owner go-ahead at each step.
+
+# CHANGELOG.md
+
+> Dated log of decisions, changes, and rationale. Newest entries at the top. Keep entries concise — full context lives in `CONTEXT.md`.
+
+---
+
+## [2026-07-15] — Phase 3: Knowledge Base Prep (Ongoing)
+### Decisions Finalized
+- **Format Scope:** Decided to strictly use CSV format for the initial V1 knowledge base ingestion. DOCX support is deferred to a future iteration to keep the initial n8n workflow lean and focused.
+
+---
+
+## [2026-07-15] — Phase 2: Infrastructure Setup
+### Added
+- Updated `docker-compose.yml` to securely map the `OPENWA_API_KEY` from the `.env` file into the OpenWA container environment, replacing auto-generated credentials.
+- `docker-compose.yml` and `.env.example`: Configured to use a shared Docker network (`shared-network`) to route to the owner's existing PostgreSQL and n8n containers, avoiding duplicate instances.
+- `scripts/init-db.template.sql`: SQL template to create an isolated database (`openwa_bot_db`), a restricted user, and enable the `pgvector` extension.
+- `scripts/setup.sh`: Bash script to bootstrap local volume directories, set permissions, and securely generate `init-db.sql` using environment variables.
+
+### Status
+- Phase 2 infrastructure deployment and verification complete.
+
+---
+
+## [2026-07-14] — Phase 1: Foundation & Tracking Files
+### Added
+- Created project root directory structure: `whatsapp-bot-openwa/`
+- Created `CONTEXT.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `.gitignore`, and `README.md`

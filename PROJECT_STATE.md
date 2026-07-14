@@ -27,7 +27,8 @@
 - ✅ Run DB initialization on existing Postgres container 
 
 ## Phase 3 — Knowledge Base Prep
-- 🔄 Confirm CSV/DOCX column structure and format with owner
+- 🔄 Confirm CSV column structure with owner
+- ✅ DOCX support deferred to future phase
 - ⏳ Placeholder files in `data/kb/`
 
 ## Phase 4 — n8n Workflows
@@ -54,8 +55,7 @@
 None.
 
 ## Immediate Next Step
-Define the structure of the CSV and DOCX knowledge base files to prepare for n8n ingestion workflow generation.
+Finalize the exact column headers for the CSV knowledge base to prepare for the n8n ingestion workflow.
 
 ## Key Open Questions (Owner Input Needed)
-- Exact column headers/format of the CSV knowledge base files
-- Exact structure of the DOCX knowledge base files (single doc vs. multiple sections)
+- What are the final column headers for the CSV file?

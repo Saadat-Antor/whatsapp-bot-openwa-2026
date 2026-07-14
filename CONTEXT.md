@@ -9,7 +9,7 @@
 Build a production-grade AI-powered WhatsApp chatbot using:
 - **OpenWA** (self-hosted, open-source WhatsApp API gateway) instead of Meta's official WhatsApp Business API
 - **n8n** for workflow orchestration
-- A **knowledge base** (company FAQs, product info, policies from CSV/DOCX files) queried via a vector store
+- A **knowledge base** (company FAQs, product info, policies from CSV files) queried via a vector store
 - **Persistent per-customer conversation history**
 - An **AI Agent** (LLM-based) that combines KB retrieval + conversation history to answer customer queries on WhatsApp
 
@@ -43,19 +43,18 @@ The bot should behave like an intelligent, context-aware customer support agent 
 | WhatsApp gateway | OpenWA (self-hosted) | Already decided by owner |
 | Workflow engine | n8n | Owner already has n8n experience/instance |
 | Vector store | **PostgreSQL + pgvector** (not Qdrant) | Knowledge base expected to stay under ~5,000 documents; avoids adding another Docker image; reuses Postgres expertise already on hand |
+| Knowledge Base Format | **CSV Only (Initially)** | Starting strictly with CSV files simplifies the initial n8n ingestion workflow. DOCX deferred. |
 | Conversation history storage | **PostgreSQL** | Persistent, queryable, easy to back up |
 | Project isolation | Separate root dir (`whatsapp-bot-openwa/`), separate `docker-compose.yml`, **shared Docker network** for cross-project communication | Keeps projects independently manageable while still able to talk to existing n8n/Postgres |
 | Database security | **Isolated DB user strategy**: separate database + separate PostgreSQL user for the bot; strong unique passwords | Prevents one project's compromised credentials from exposing another project's data, even on a shared Postgres instance |
 | n8n workflows | **Three workflows** (see below) | Clean separation of concerns: ingestion vs. logging vs. live chat handling |
-
-> Note: Earlier discussion explored Qdrant as a dedicated vector DB. Final decision is **pgvector on PostgreSQL**, conditional on the KB staying under ~5,000 documents. If the KB grows significantly beyond that, revisit Qdrant.
 
 ---
 
 ## The Three n8n Workflows
 
 1. **KB Ingestion** (scheduled — weekly or monthly)
-   - Reads CSV/DOCX files from local storage (`data/kb/`)
+   - Reads CSV files from local storage (`data/kb/`)
    - Chunks text, generates embeddings, stores/updates vectors in PostgreSQL (pgvector)
 
 2. **WhatsApp Message Handler** (main bot, triggered by OpenWA webhook)
