@@ -1,0 +1,4 @@
+ProductID,Name,Category,Description,Price,StockStatus
+PROD-001,Organic Cotton Onesie,Apparel,Ultra-soft 100% organic cotton bodysuit for newborns and infants.,24.99,In Stock
+PROD-002,Knitted Baby Beanie,Accessories,Cozy wool-blend knitted beanie perfect for cold weather protection.,14.99,In Stock
+PROD-003,Bamboo Sleep Sack,Bedding,Breathable thermoregulating bamboo fabric sleep sack for toddlers.,39.99,Low Stock

@@ -1,0 +1,4 @@
+OrderID,CustomerPhone,Status,TotalAmount,ItemsOrdered,TrackingNumber
+ORD-9921,+15550192834,Shipped,39.98,2x Knitted Baby Beanie,1Z999AA10123456784
+ORD-9922,+15550147281,Processing,64.98,1x Organic Cotton Onesie; 1x Bamboo Sleep Sack,PENDING
+ORD-9923,+15550183749,Delivered,24.99,1x Organic Cotton Onesie,1Z999AA10123456789
