@@ -31,6 +31,22 @@ else
     echo "✅ .env already exists."
 fi
 
+# 4. Generate the database initialization script
+echo "⚙️  Generating init-db.sql from template..."
+if [ -f .env ] && [ -f scripts/init-db.template.sql ]; then
+    # Extract the password from .env (ignoring comments)
+    DB_PASSWORD=$(grep -v '^#' .env | grep -E '^OPENWA_DB_PASSWORD=' | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+    
+    if [ -n "$DB_PASSWORD" ]; then
+        sed "s/__DB_PASSWORD__/$DB_PASSWORD/g" scripts/init-db.template.sql > scripts/init-db.sql
+        echo "✅ scripts/init-db.sql generated successfully (ignored by git)."
+    else
+        echo "⚠️  OPENWA_DB_PASSWORD not found in .env. Please add it and re-run setup.sh."
+    fi
+else
+    echo "⚠️  Could not generate init-db.sql (missing .env or template)."
+fi
+
 echo "======================================================================="
 echo "✅ Setup script complete."
 echo "Reminder: Ensure you have manually created the shared network via:"
