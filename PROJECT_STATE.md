@@ -2,7 +2,7 @@
 
 > Snapshot of current progress. Update this file after every meaningful step. Read `CONTEXT.md` first if you need background on *why* decisions were made.
 
-**Last updated:** 2026-07-15 (Phase 4 complete, verified against real CSV files)
+**Last updated:** 2026-07-15 (Phase 4 complete, verified against real CSV files, aligned to Google Gemini)
 
 ---
 
@@ -39,14 +39,12 @@
   - ✅ KB Ingestion branch (Schedule Trigger, weekly) — routes embed vs. relational data via Switch
   - ✅ Message Handler branch (Webhook Trigger) — filters event type, fetches history, detects returning/new customer, AI Agent w/ pgvector tool, sends reply
   - ✅ Conversation logging — inline in Message Handler branch (no separate workflow needed)
-- ✅ CSV column assumptions **VERIFIED** against real files and workflow updated:
-  - customer_qnas.csv: Category, Question, Answer, Reference_URL ✅
-  - product_info.csv: ProductID, Name, Category, Description, Price, StockStatus ✅
-  - order_data.csv: OrderID, CustomerPhone, Status, TotalAmount, ItemsOrdered, TrackingNumber ✅
-- ✅ `init-db.template.sql` **EXTENDED** with kb_embeddings, orders, conversations table schemas
+- ✅ CSV column assumptions **VERIFIED** against real files and workflow updated.
+- ✅ `init-db.template.sql` **EXTENDED** with kb_embeddings, orders, conversations table schemas.
+- ✅ AI Provider aligned to Google Gemini.
 
 ## Phase 5 — Testing & Validation
-- ⏳ Import workflow into n8n and wire up credentials (OpenAI, Postgres, OpenWA API Key)
+- ⏳ Import workflow into n8n and wire up credentials (Gemini API, Postgres, OpenWA API Key)
 - ⏳ OpenWA session creation + QR scan test
 - ⏳ KB ingestion manual test (verify vectors land in pgvector, orders land in relational table)
 - ⏳ End-to-end message flow test (incl. returning-customer context injection)
@@ -65,11 +63,11 @@ None.
 
 ## Immediate Next Step
 **You are ready to test.** Next actions:
-1. Run `scripts/setup.sh` to initialize the database with the new table schemas
-2. Import `n8n/workflows/whatsapp-bot-combined-workflow.json` into n8n
-3. Wire up credentials (OpenAI API key, Postgres credentials, OpenWA API key)
-4. Manually trigger KB Ingestion workflow to populate pgvector + orders table
-5. Send a test WhatsApp message via OpenWA to verify end-to-end flow
+1. Run `scripts/setup.sh` to generate the SQL file, then `docker exec` it into Postgres to initialize the new table schemas.
+2. Import `n8n/workflows/whatsapp-bot-combined-workflow.json` into n8n (Ensure OpenAI nodes are swapped for Gemini nodes if necessary).
+3. Wire up credentials (Gemini API key, Postgres credentials, OpenWA API key).
+4. Manually trigger KB Ingestion workflow.
+5. Send a test WhatsApp message via OpenWA.
 
 ## Key Open Questions (Owner Input Needed)
 None for this phase.
