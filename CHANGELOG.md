@@ -75,3 +75,23 @@
 
 ### Status
 - Phase 1 complete.
+
+## [2026-07-15] — Phase 4: CSV Column Verification & Schema Updates
+### Updates (Post-generation verification)
+- Verified real CSV files against workflow assumptions:
+  - `customer_qnas.csv`: ✅ exact match (Category, Question, Answer, Reference_URL)
+  - `product_info.csv`: ❌ updated workflow (was: product_name, sku, availability → actual: ProductID, Name, Category, Description, Price, StockStatus)
+  - `order_data.csv`: ❌ updated workflow (was: phone_number, order_id, quantity → actual: OrderID, CustomerPhone, Status, TotalAmount, ItemsOrdered, TrackingNumber)
+- Updated all CSV-parsing and DB-upsert nodes in the workflow to use actual column names
+- **Extended `scripts/init-db.template.sql`** with full table schemas:
+  - `kb_embeddings` (pgvector, with ivfflat index)
+  - `orders` (relational, indexed on customer_phone for fast returning-customer detection)
+  - `conversations` (conversation history, indexed on chat_id)
+  - Grants all privileges to `openwa_bot_user`
+
+### Status
+- Phase 4 now complete and verified
+- Workflow ready to import into n8n
+- Database schema ready to run via `setup.sh`
+
+---
