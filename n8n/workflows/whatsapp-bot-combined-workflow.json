@@ -2,35 +2,26 @@
     "name": "WhatsApp Bot (OpenWA) - Combined: Ingestion + Handler + Logger",
     "nodes": [
         {
-            "id": "note-001",
+            "parameters": {
+                "content": "## Assumptions to verify before running\n\n**CSV columns assumed:**\n- customer_qnas.csv: Category, Question, Answer, Reference_URL\n- product_info.csv: product_name, category, description, price, sku, availability\n- order_data.csv: phone_number, order_id, product_name, quantity, order_status, order_date\n\nAdjust the 'Format Rows as Chunks', 'Upsert Orders Table', and 'Build Customer Context' nodes if your real headers differ.\n\n**Postgres tables expected (create via init-db if missing):**\n- kb_embeddings(id, content text, metadata jsonb, embedding vector(1536))\n- orders(phone_number text, order_id text, product_name text, quantity int, order_status text, order_date date, updated_at timestamptz default now(), PRIMARY KEY(phone_number, order_id))\n- conversations(id serial, chat_id text, from_number text, session_id text, user_message text, bot_reply text, created_at timestamptz default now())\n\n**Credentials needed:** OpenAI, Postgres (isolated openwa_user), OpenWA API Key (HTTP Header Auth: X-API-Key)\n\n**File paths assumed:** /data/kb/customer_qnas.csv, /data/kb/product_info.csv, /data/kb/order_data.csv (adjust to your mounted volume path)",
+                "height": 420,
+                "width": 480
+            },
+            "id": "e4ddaf7e-a124-4b0c-b5ff-b238c97b3d87",
             "name": "Setup Notes",
             "type": "n8n-nodes-base.stickyNote",
             "typeVersion": 1,
             "position": [
-                -1400,
-                -200
-            ],
-            "parameters": {
-                "width": 480,
-                "height": 420,
-                "content": "## Assumptions to verify before running\n\n**CSV columns assumed:**\n- customer_qnas.csv: Category, Question, Answer, Reference_URL\n- product_info.csv: product_name, category, description, price, sku, availability\n- order_data.csv: phone_number, order_id, product_name, quantity, order_status, order_date\n\nAdjust the 'Format Rows as Chunks', 'Upsert Orders Table', and 'Build Customer Context' nodes if your real headers differ.\n\n**Postgres tables expected (create via init-db if missing):**\n- kb_embeddings(id, content text, metadata jsonb, embedding vector(1536))\n- orders(phone_number text, order_id text, product_name text, quantity int, order_status text, order_date date, updated_at timestamptz default now(), PRIMARY KEY(phone_number, order_id))\n- conversations(id serial, chat_id text, from_number text, session_id text, user_message text, bot_reply text, created_at timestamptz default now())\n\n**Credentials needed:** OpenAI, Postgres (isolated openwa_user), OpenWA API Key (HTTP Header Auth: X-API-Key)\n\n**File paths assumed:** /data/kb/customer_qnas.csv, /data/kb/product_info.csv, /data/kb/order_data.csv (adjust to your mounted volume path)"
-            }
+                448,
+                464
+            ]
         },
         {
-            "id": "trig-schedule-001",
-            "name": "KB Ingestion Schedule",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
-            "position": [
-                -1400,
-                300
-            ],
             "parameters": {
                 "rule": {
                     "interval": [
                         {
                             "field": "weeks",
-                            "weeksInterval": 1,
                             "triggerAtDay": [
                                 1
                             ],
@@ -38,39 +29,40 @@
                         }
                     ]
                 }
-            }
+            },
+            "id": "6f752412-b7e7-404f-bb99-55be732b9772",
+            "name": "KB Ingestion Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                976
+            ]
         },
         {
-            "id": "code-kb-filelist-001",
+            "parameters": {
+                "jsCode": "return [\n  { json: { fileName: 'customer_qnas.csv', filePath: '/data/kb/customer_qnas.csv', kbType: 'embed', sourceLabel: 'faq' } },\n  { json: { fileName: 'product_info.csv', filePath: '/data/kb/product_info.csv', kbType: 'embed', sourceLabel: 'product' } },\n  { json: { fileName: 'order_data.csv', filePath: '/data/kb/order_data.csv', kbType: 'relational', sourceLabel: 'orders' } }\n];"
+            },
+            "id": "0e212499-1c1b-4622-b487-ad02c9785720",
             "name": "Define KB File List",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1180,
-                300
-            ],
-            "parameters": {
-                "jsCode": "return [\n  { json: { fileName: 'customer_qnas.csv', filePath: '/data/kb/customer_qnas.csv', kbType: 'embed', sourceLabel: 'faq' } },\n  { json: { fileName: 'product_info.csv', filePath: '/data/kb/product_info.csv', kbType: 'embed', sourceLabel: 'product' } },\n  { json: { fileName: 'order_data.csv', filePath: '/data/kb/order_data.csv', kbType: 'relational', sourceLabel: 'orders' } }\n];"
-            }
+                672,
+                976
+            ]
         },
         {
-            "id": "switch-kbtype-001",
-            "name": "Route by KB Type",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                -960,
-                300
-            ],
             "parameters": {
                 "rules": {
                     "values": [
                         {
-                            "outputKey": "embed",
                             "conditions": {
                                 "options": {
                                     "caseSensitive": true,
-                                    "typeValidation": "loose"
+                                    "leftValue": "",
+                                    "typeValidation": "loose",
+                                    "version": 1
                                 },
                                 "combinator": "and",
                                 "conditions": [
@@ -86,11 +78,12 @@
                             }
                         },
                         {
-                            "outputKey": "relational",
                             "conditions": {
                                 "options": {
                                     "caseSensitive": true,
-                                    "typeValidation": "loose"
+                                    "leftValue": "",
+                                    "typeValidation": "loose",
+                                    "version": 1
                                 },
                                 "combinator": "and",
                                 "conditions": [
@@ -108,201 +101,162 @@
                     ]
                 },
                 "options": {}
-            }
+            },
+            "id": "b07ecd29-e9f7-4986-8fe3-33bd42527178",
+            "name": "Route by KB Type",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                896,
+                976
+            ]
         },
         {
-            "id": "read-embed-001",
+            "parameters": {
+                "fileSelector": "={{ $json.filePath }}",
+                "options": {}
+            },
+            "id": "f6300564-d4fd-4c2a-87c8-8c4324888376",
             "name": "Read KB File (Embed)",
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -740,
-                180
-            ],
-            "parameters": {
-                "operation": "read",
-                "fileSelector": "={{ $json.filePath }}",
-                "options": {}
-            }
+                1120,
+                848
+            ]
         },
         {
-            "id": "extract-embed-001",
+            "parameters": {
+                "options": {}
+            },
+            "id": "7bb829b9-7412-42e7-a84e-46e0d369f382",
             "name": "Parse CSV Rows (Embed)",
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -540,
-                180
-            ],
-            "parameters": {
-                "operation": "csv",
-                "options": {}
-            }
+                1312,
+                848
+            ]
         },
         {
-            "id": "code-format-chunks-001",
+            "parameters": {
+                "jsCode": "// Turns each CSV row into a text chunk + metadata for embedding.\n// Handles both customer_qnas.csv (Category, Question, Answer, Reference_URL)\n// and product_info.csv (product_name, category, description, price, sku, availability).\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const row = item.json;\n  let pageContent = '';\n\n  if (row.Question || row.question) {\n    const q = row.Question || row.question;\n    const a = row.Answer || row.answer;\n    const cat = row.Category || row.category || '';\n    pageContent = `Category: ${cat}\\nQ: ${q}\\nA: ${a}`;\n  } else if (row.product_name) {\n    pageContent = `Product: ${row.product_name}\\nCategory: ${row.category || ''}\\nDescription: ${row.description || ''}\\nPrice: ${row.price || ''}\\nSKU: ${row.sku || ''}\\nAvailability: ${row.availability || ''}`;\n  } else {\n    // Fallback: dump all columns\n    pageContent = Object.entries(row).map(([k, v]) => `${k}: ${v}`).join('\\n');\n  }\n\n  out.push({\n    json: {\n      pageContent,\n      metadata: { source: $('Define KB File List').first().json.fileName, sourceLabel: $('Define KB File List').first().json.sourceLabel }\n    }\n  });\n}\n\nreturn out;"
+            },
+            "id": "dc2543c7-a947-468d-83a1-1edb8f2cab86",
             "name": "Format Rows as Chunks",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -340,
-                180
-            ],
-            "parameters": {
-                "jsCode": "// Turns each CSV row into a text chunk + metadata for embedding.\n// Handles both customer_qnas.csv (Category, Question, Answer, Reference_URL)\n// and product_info.csv (product_name, category, description, price, sku, availability).\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const row = item.json;\n  let pageContent = '';\n\n  if (row.Question || row.question) {\n    const q = row.Question || row.question;\n    const a = row.Answer || row.answer;\n    const cat = row.Category || row.category || '';\n    pageContent = `Category: ${cat}\\nQ: ${q}\\nA: ${a}`;\n  } else if (row.product_name) {\n    pageContent = `Product: ${row.product_name}\\nCategory: ${row.category || ''}\\nDescription: ${row.description || ''}\\nPrice: ${row.price || ''}\\nSKU: ${row.sku || ''}\\nAvailability: ${row.availability || ''}`;\n  } else {\n    // Fallback: dump all columns\n    pageContent = Object.entries(row).map(([k, v]) => `${k}: ${v}`).join('\\n');\n  }\n\n  out.push({\n    json: {\n      pageContent,\n      metadata: { source: $('Define KB File List').first().json.fileName, sourceLabel: $('Define KB File List').first().json.sourceLabel }\n    }\n  });\n}\n\nreturn out;"
-            }
+                1520,
+                848
+            ]
         },
         {
-            "id": "embed-ingest-001",
-            "name": "Embeddings OpenAI (Ingestion)",
-            "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
-            "typeVersion": 1.2,
-            "position": [
-                -340,
-                380
-            ],
-            "parameters": {
-                "options": {}
-            },
-            "credentials": {
-                "openAiApi": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenAI account"
-                }
-            }
-        },
-        {
-            "id": "pgvector-insert-001",
-            "name": "Insert into pgvector KB",
-            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
-            "typeVersion": 1,
-            "position": [
-                -140,
-                180
-            ],
             "parameters": {
                 "mode": "insert",
                 "tableName": "kb_embeddings",
                 "options": {}
             },
-            "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
-                }
-            }
+            "id": "80dc2fdf-96a9-451e-b2ee-476424a2efbd",
+            "name": "Insert into pgvector KB",
+            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+            "typeVersion": 1,
+            "position": [
+                1712,
+                848
+            ]
         },
         {
-            "id": "read-order-001",
+            "parameters": {
+                "fileSelector": "={{ $json.filePath }}",
+                "options": {}
+            },
+            "id": "6dd63130-30bb-4eb1-8ba9-ea9d2b634463",
             "name": "Read Order Data CSV",
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -740,
-                460
-            ],
-            "parameters": {
-                "operation": "read",
-                "fileSelector": "={{ $json.filePath }}",
-                "options": {}
-            }
+                1120,
+                1136
+            ]
         },
         {
-            "id": "extract-order-001",
+            "parameters": {
+                "options": {}
+            },
+            "id": "0c5a3644-e070-43cb-af91-31aede43c057",
             "name": "Parse Order CSV Rows",
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -540,
-                460
-            ],
-            "parameters": {
-                "operation": "csv",
-                "options": {}
-            }
+                1312,
+                1136
+            ]
         },
         {
-            "id": "pg-upsert-orders-001",
-            "name": "Upsert Orders Table",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                -340,
-                460
-            ],
             "parameters": {
                 "operation": "executeQuery",
                 "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES ('{{ $json.phone_number }}', '{{ $json.order_id }}', '{{ $json.product_name }}', {{ $json.quantity || 1 }}, '{{ $json.order_status }}', '{{ $json.order_date }}', now())\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET product_name = EXCLUDED.product_name, quantity = EXCLUDED.quantity, order_status = EXCLUDED.order_status, order_date = EXCLUDED.order_date, updated_at = now();",
                 "options": {}
             },
-            "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
-                }
-            }
+            "id": "3c0f5b87-2834-473a-9314-1522db4b4c0f",
+            "name": "Upsert Orders Table",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1520,
+                1136
+            ]
         },
         {
-            "id": "merge-ingest-001",
+            "parameters": {},
+            "id": "922d60c2-1411-41bd-a918-82918386b0b8",
             "name": "Merge Ingestion Branches",
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                80,
-                300
-            ],
-            "parameters": {
-                "mode": "append",
-                "options": {}
-            }
+                1936,
+                976
+            ]
         },
         {
-            "id": "noop-ingest-done-001",
+            "parameters": {},
+            "id": "ca097b0f-1952-4ce2-910c-6235071e9e13",
             "name": "KB Ingestion Complete",
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                280,
-                300
-            ],
-            "parameters": {}
+                2128,
+                976
+            ]
         },
         {
-            "id": "webhook-001",
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "openwa-webhook",
+                "options": {}
+            },
+            "id": "95ffe4a6-5410-4e60-bea1-61e244cbeb32",
             "name": "OpenWA Incoming Webhook",
             "type": "n8n-nodes-base.webhook",
             "typeVersion": 2,
             "position": [
-                -1400,
-                900
+                448,
+                1568
             ],
-            "parameters": {
-                "httpMethod": "POST",
-                "path": "openwa-webhook",
-                "responseMode": "onReceived",
-                "responseData": "{\"success\":true}",
-                "options": {}
-            },
             "webhookId": "openwa-webhook"
         },
         {
-            "id": "switch-event-001",
-            "name": "Route Incoming Event",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                -1180,
-                900
-            ],
             "parameters": {
                 "rules": {
                     "values": [
                         {
-                            "outputKey": "text_message",
                             "conditions": {
                                 "options": {
                                     "caseSensitive": true,
-                                    "typeValidation": "loose"
+                                    "leftValue": "",
+                                    "typeValidation": "loose",
+                                    "version": 1
                                 },
                                 "combinator": "and",
                                 "conditions": [
@@ -330,28 +284,28 @@
                 "options": {
                     "fallbackOutput": "extra"
                 }
-            }
+            },
+            "id": "cfd4e3e0-b9ed-4dcb-9f83-8cb2af5de15c",
+            "name": "Route Incoming Event",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                672,
+                1568
+            ]
         },
         {
-            "id": "noop-ignore-001",
+            "parameters": {},
+            "id": "aeff0643-ab93-4a12-a4a8-e89990da065f",
             "name": "Ignore Non-Text Event",
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -960,
-                1020
-            ],
-            "parameters": {}
+                896,
+                1696
+            ]
         },
         {
-            "id": "set-extract-001",
-            "name": "Extract Message Data",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.4,
-            "position": [
-                -960,
-                820
-            ],
             "parameters": {
                 "assignments": {
                     "assignments": [
@@ -380,95 +334,85 @@
                             "type": "string"
                         }
                     ]
-                }
-            }
+                },
+                "options": {}
+            },
+            "id": "a4e9f6f5-be72-4bfe-8716-703c39d7d348",
+            "name": "Extract Message Data",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                896,
+                1488
+            ]
         },
         {
-            "id": "pg-history-001",
-            "name": "Fetch Conversation History",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                -740,
-                720
-            ],
             "parameters": {
                 "operation": "executeQuery",
                 "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId }}' ORDER BY created_at DESC LIMIT 10;",
                 "options": {}
             },
-            "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
-                }
-            }
+            "id": "99214122-38a4-42fe-8a70-b6e25e6b71f8",
+            "name": "Fetch Conversation History",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1120,
+                1392
+            ]
         },
         {
-            "id": "code-format-history-001",
+            "parameters": {
+                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
+            },
+            "id": "121d796f-bb00-45ee-9afb-aa15af989e0c",
             "name": "Format Conversation History",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -540,
-                720
-            ],
-            "parameters": {
-                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
-            }
+                1312,
+                1392
+            ]
         },
         {
-            "id": "pg-orders-lookup-001",
-            "name": "Lookup Customer Orders",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                -740,
-                980
-            ],
             "parameters": {
                 "operation": "executeQuery",
                 "query": "SELECT order_id, product_name, quantity, order_status, order_date FROM orders WHERE phone_number = '{{ $json.from }}' ORDER BY order_date DESC LIMIT 5;",
                 "options": {}
             },
-            "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
-                }
-            }
+            "id": "11872c86-da94-47d7-8e09-fedef01fffc4",
+            "name": "Lookup Customer Orders",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1120,
+                1648
+            ]
         },
         {
-            "id": "code-customer-context-001",
+            "parameters": {
+                "jsCode": "const orders = $input.all();\nconst isReturning = orders.length > 0;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
+            },
+            "id": "f6bf0372-93a8-4c48-96fb-0db8aaafe971",
             "name": "Build Customer Context",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -540,
-                980
-            ],
-            "parameters": {
-                "jsCode": "const orders = $input.all();\nconst isReturning = orders.length > 0;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
-            }
+                1312,
+                1648
+            ]
         },
         {
-            "id": "switch-customer-001",
-            "name": "Route by Customer Type",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                -340,
-                980
-            ],
             "parameters": {
                 "rules": {
                     "values": [
                         {
-                            "outputKey": "returning",
                             "conditions": {
                                 "options": {
                                     "caseSensitive": true,
-                                    "typeValidation": "loose"
+                                    "leftValue": "",
+                                    "typeValidation": "loose",
+                                    "version": 1
                                 },
                                 "combinator": "and",
                                 "conditions": [
@@ -484,11 +428,12 @@
                             }
                         },
                         {
-                            "outputKey": "new",
                             "conditions": {
                                 "options": {
                                     "caseSensitive": true,
-                                    "typeValidation": "loose"
+                                    "leftValue": "",
+                                    "typeValidation": "loose",
+                                    "version": 1
                                 },
                                 "combinator": "and",
                                 "conditions": [
@@ -506,17 +451,17 @@
                     ]
                 },
                 "options": {}
-            }
+            },
+            "id": "da510805-4c64-42ab-acca-4d7847e105f2",
+            "name": "Route by Customer Type",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                1520,
+                1648
+            ]
         },
         {
-            "id": "set-returning-001",
-            "name": "Set Returning Customer Context",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.4,
-            "position": [
-                -140,
-                900
-            ],
             "parameters": {
                 "assignments": {
                     "assignments": [
@@ -533,18 +478,19 @@
                             "type": "boolean"
                         }
                     ]
-                }
-            }
-        },
-        {
-            "id": "set-new-001",
-            "name": "Set New Customer Context",
+                },
+                "options": {}
+            },
+            "id": "27341af0-1579-492b-b480-a82fd823a06f",
+            "name": "Set Returning Customer Context",
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -140,
-                1060
-            ],
+                1712,
+                1568
+            ]
+        },
+        {
             "parameters": {
                 "assignments": {
                     "assignments": [
@@ -561,144 +507,93 @@
                             "type": "boolean"
                         }
                     ]
-                }
-            }
+                },
+                "options": {}
+            },
+            "id": "b4c9aa00-73e3-454b-8f40-0960fdf4efd9",
+            "name": "Set New Customer Context",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1712,
+                1728
+            ]
         },
         {
-            "id": "merge-customer-001",
+            "parameters": {},
+            "id": "5f32408f-2071-47bb-9778-beee8ba08e4d",
             "name": "Merge Customer Context Branches",
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                60,
-                980
-            ],
-            "parameters": {
-                "mode": "append",
-                "options": {}
-            }
+                1920,
+                1648
+            ]
         },
         {
-            "id": "merge-all-context-001",
-            "name": "Merge All Context",
-            "type": "n8n-nodes-base.merge",
-            "typeVersion": 3,
-            "position": [
-                260,
-                850
-            ],
             "parameters": {
                 "mode": "combine",
                 "combineBy": "combineByPosition",
                 "options": {}
-            }
+            },
+            "id": "99c52252-06ec-4c5d-ac96-d80263d75ddf",
+            "name": "Merge All Context",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                2112,
+                1520
+            ]
         },
         {
-            "id": "embed-query-001",
-            "name": "Embeddings OpenAI (Query)",
-            "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
-            "typeVersion": 1.2,
-            "position": [
-                460,
-                1120
-            ],
             "parameters": {
+                "mode": "retrieve-as-tool",
+                "toolName": "company_knowledge_base",
+                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
+                "tableName": "kb_embeddings",
                 "options": {}
             },
-            "credentials": {
-                "openAiApi": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenAI account"
-                }
-            }
-        },
-        {
-            "id": "pgvector-query-001",
+            "id": "d401c794-ceb4-4240-b550-4e9e32dc1108",
             "name": "Query Knowledge Base",
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                460,
-                980
-            ],
-            "parameters": {
-                "mode": "retrieve-as-tool",
-                "tableName": "kb_embeddings",
-                "toolName": "company_knowledge_base",
-                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
-                "topK": 4,
-                "options": {}
-            },
-            "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
-                }
-            }
+                2304,
+                1728
+            ]
         },
         {
-            "id": "chatmodel-001",
-            "name": "Chat Model",
-            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-            "typeVersion": 1.2,
-            "position": [
-                460,
-                700
-            ],
             "parameters": {
-                "model": "gpt-4o-mini",
-                "options": {
-                    "temperature": 0.3
-                }
+                "sessionIdType": "customKey",
+                "sessionKey": "={{ $json.chatId }}"
             },
-            "credentials": {
-                "openAiApi": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenAI account"
-                }
-            }
-        },
-        {
-            "id": "memory-001",
+            "id": "cc343b36-d70d-4a85-a8ca-fded8ed756b5",
             "name": "Conversation Memory",
             "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
             "typeVersion": 1.3,
             "position": [
-                460,
-                850
-            ],
-            "parameters": {
-                "sessionIdType": "customKey",
-                "sessionKey": "={{ $json.chatId }}",
-                "contextWindowLength": 5
-            }
+                2320,
+                1520
+            ]
         },
         {
-            "id": "agent-001",
-            "name": "AI Agent",
-            "type": "@n8n/n8n-nodes-langchain.agent",
-            "typeVersion": 1.7,
-            "position": [
-                660,
-                850
-            ],
             "parameters": {
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
                     "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g. order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in."
                 }
-            }
+            },
+            "id": "63298599-2ae5-4e0b-a6b5-827e5cdd04cb",
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                2512,
+                1520
+            ]
         },
         {
-            "id": "http-send-001",
-            "name": "Send Reply via OpenWA",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                880,
-                850
-            ],
             "parameters": {
                 "method": "POST",
                 "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').item.json.sessionId }}/messages/send-text",
@@ -718,35 +613,85 @@
                 "jsonBody": "={{ { \"chatId\": $('Extract Message Data').item.json.chatId, \"text\": $json.output } }}",
                 "options": {}
             },
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA API Key"
-                }
-            }
+            "id": "6fb9e955-e627-46b7-9bd3-ae453f101e83",
+            "name": "Send Reply via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2816,
+                1520
+            ]
         },
         {
-            "id": "pg-log-001",
-            "name": "Log Conversation",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1080,
-                850
-            ],
             "parameters": {
                 "operation": "executeQuery",
                 "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES ('{{ $('Extract Message Data').item.json.chatId }}', '{{ $('Extract Message Data').item.json.from }}', '{{ $('Extract Message Data').item.json.sessionId }}', '{{ $('Extract Message Data').item.json.userMessage }}', '{{ $json.output }}', now());",
                 "options": {}
             },
+            "id": "0a3de8c8-cb3b-46fd-aef7-7784dee8e433",
+            "name": "Log Conversation",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                3024,
+                1520
+            ]
+        },
+        {
+            "parameters": {},
+            "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                1648,
+                1008
+            ],
+            "id": "acffddd2-368a-486e-8cc0-86f7cec9a20e",
+            "name": "Embeddings Gemini(Ingestion)",
             "credentials": {
-                "postgres": {
-                    "id": "REPLACE_ME",
-                    "name": "OpenWA Postgres (isolated)"
+                "googlePalmApi": {
+                    "id": "Li7rLIbDUL2egSir",
+                    "name": "Google Gemini(PaLM) Api account"
+                }
+            }
+        },
+        {
+            "parameters": {},
+            "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                2304,
+                1936
+            ],
+            "id": "43df2801-1759-494d-bc91-5a1d71448a82",
+            "name": "Embeddings Gemini(Query)",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "Li7rLIbDUL2egSir",
+                    "name": "Google Gemini(PaLM) Api account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                2576,
+                1792
+            ],
+            "id": "7ba7f37a-474f-48a9-8960-aff299e95848",
+            "name": "Chat Model",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "Li7rLIbDUL2egSir",
+                    "name": "Google Gemini(PaLM) Api account"
                 }
             }
         }
     ],
+    "pinData": {},
     "connections": {
         "KB Ingestion Schedule": {
             "main": [
@@ -816,17 +761,6 @@
                     {
                         "node": "Insert into pgvector KB",
                         "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Embeddings OpenAI (Ingestion)": {
-            "ai_embedding": [
-                [
-                    {
-                        "node": "Insert into pgvector KB",
-                        "type": "ai_embedding",
                         "index": 0
                     }
                 ]
@@ -1038,17 +972,6 @@
                 ]
             ]
         },
-        "Chat Model": {
-            "ai_languageModel": [
-                [
-                    {
-                        "node": "AI Agent",
-                        "type": "ai_languageModel",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Conversation Memory": {
             "ai_memory": [
                 [
@@ -1066,17 +989,6 @@
                     {
                         "node": "AI Agent",
                         "type": "ai_tool",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Embeddings OpenAI (Query)": {
-            "ai_embedding": [
-                [
-                    {
-                        "node": "Query Knowledge Base",
-                        "type": "ai_embedding",
                         "index": 0
                     }
                 ]
@@ -1103,6 +1015,51 @@
                     }
                 ]
             ]
+        },
+        "Embeddings Gemini(Ingestion)": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "Insert into pgvector KB",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embeddings Gemini(Query)": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "Query Knowledge Base",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
         }
-    }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1",
+        "binaryMode": "separate"
+    },
+    "versionId": "00f4bd68-6f96-4f8b-b5fd-0dc396f37bc8",
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
+    },
+    "id": "OjqwcVcvozxiu3hi",
+    "tags": []
 }
