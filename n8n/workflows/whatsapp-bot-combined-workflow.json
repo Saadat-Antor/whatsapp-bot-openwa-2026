@@ -1,0 +1,1108 @@
+{
+    "name": "WhatsApp Bot (OpenWA) - Combined: Ingestion + Handler + Logger",
+    "nodes": [
+        {
+            "id": "note-001",
+            "name": "Setup Notes",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                -1400,
+                -200
+            ],
+            "parameters": {
+                "width": 480,
+                "height": 420,
+                "content": "## Assumptions to verify before running\n\n**CSV columns assumed:**\n- customer_qnas.csv: Category, Question, Answer, Reference_URL\n- product_info.csv: product_name, category, description, price, sku, availability\n- order_data.csv: phone_number, order_id, product_name, quantity, order_status, order_date\n\nAdjust the 'Format Rows as Chunks', 'Upsert Orders Table', and 'Build Customer Context' nodes if your real headers differ.\n\n**Postgres tables expected (create via init-db if missing):**\n- kb_embeddings(id, content text, metadata jsonb, embedding vector(1536))\n- orders(phone_number text, order_id text, product_name text, quantity int, order_status text, order_date date, updated_at timestamptz default now(), PRIMARY KEY(phone_number, order_id))\n- conversations(id serial, chat_id text, from_number text, session_id text, user_message text, bot_reply text, created_at timestamptz default now())\n\n**Credentials needed:** OpenAI, Postgres (isolated openwa_user), OpenWA API Key (HTTP Header Auth: X-API-Key)\n\n**File paths assumed:** /data/kb/customer_qnas.csv, /data/kb/product_info.csv, /data/kb/order_data.csv (adjust to your mounted volume path)"
+            }
+        },
+        {
+            "id": "trig-schedule-001",
+            "name": "KB Ingestion Schedule",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -1400,
+                300
+            ],
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "weeksInterval": 1,
+                            "triggerAtDay": [
+                                1
+                            ],
+                            "triggerAtHour": 2
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "code-kb-filelist-001",
+            "name": "Define KB File List",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1180,
+                300
+            ],
+            "parameters": {
+                "jsCode": "return [\n  { json: { fileName: 'customer_qnas.csv', filePath: '/data/kb/customer_qnas.csv', kbType: 'embed', sourceLabel: 'faq' } },\n  { json: { fileName: 'product_info.csv', filePath: '/data/kb/product_info.csv', kbType: 'embed', sourceLabel: 'product' } },\n  { json: { fileName: 'order_data.csv', filePath: '/data/kb/order_data.csv', kbType: 'relational', sourceLabel: 'orders' } }\n];"
+            }
+        },
+        {
+            "id": "switch-kbtype-001",
+            "name": "Route by KB Type",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -960,
+                300
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "outputKey": "embed",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "typeValidation": "loose"
+                                },
+                                "combinator": "and",
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.kbType }}",
+                                        "rightValue": "embed",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "outputKey": "relational",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "typeValidation": "loose"
+                                },
+                                "combinator": "and",
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.kbType }}",
+                                        "rightValue": "relational",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "read-embed-001",
+            "name": "Read KB File (Embed)",
+            "type": "n8n-nodes-base.readWriteFile",
+            "typeVersion": 1,
+            "position": [
+                -740,
+                180
+            ],
+            "parameters": {
+                "operation": "read",
+                "fileSelector": "={{ $json.filePath }}",
+                "options": {}
+            }
+        },
+        {
+            "id": "extract-embed-001",
+            "name": "Parse CSV Rows (Embed)",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "position": [
+                -540,
+                180
+            ],
+            "parameters": {
+                "operation": "csv",
+                "options": {}
+            }
+        },
+        {
+            "id": "code-format-chunks-001",
+            "name": "Format Rows as Chunks",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -340,
+                180
+            ],
+            "parameters": {
+                "jsCode": "// Turns each CSV row into a text chunk + metadata for embedding.\n// Handles both customer_qnas.csv (Category, Question, Answer, Reference_URL)\n// and product_info.csv (product_name, category, description, price, sku, availability).\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const row = item.json;\n  let pageContent = '';\n\n  if (row.Question || row.question) {\n    const q = row.Question || row.question;\n    const a = row.Answer || row.answer;\n    const cat = row.Category || row.category || '';\n    pageContent = `Category: ${cat}\\nQ: ${q}\\nA: ${a}`;\n  } else if (row.product_name) {\n    pageContent = `Product: ${row.product_name}\\nCategory: ${row.category || ''}\\nDescription: ${row.description || ''}\\nPrice: ${row.price || ''}\\nSKU: ${row.sku || ''}\\nAvailability: ${row.availability || ''}`;\n  } else {\n    // Fallback: dump all columns\n    pageContent = Object.entries(row).map(([k, v]) => `${k}: ${v}`).join('\\n');\n  }\n\n  out.push({\n    json: {\n      pageContent,\n      metadata: { source: $('Define KB File List').first().json.fileName, sourceLabel: $('Define KB File List').first().json.sourceLabel }\n    }\n  });\n}\n\nreturn out;"
+            }
+        },
+        {
+            "id": "embed-ingest-001",
+            "name": "Embeddings OpenAI (Ingestion)",
+            "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                -340,
+                380
+            ],
+            "parameters": {
+                "options": {}
+            },
+            "credentials": {
+                "openAiApi": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenAI account"
+                }
+            }
+        },
+        {
+            "id": "pgvector-insert-001",
+            "name": "Insert into pgvector KB",
+            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+            "typeVersion": 1,
+            "position": [
+                -140,
+                180
+            ],
+            "parameters": {
+                "mode": "insert",
+                "tableName": "kb_embeddings",
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        },
+        {
+            "id": "read-order-001",
+            "name": "Read Order Data CSV",
+            "type": "n8n-nodes-base.readWriteFile",
+            "typeVersion": 1,
+            "position": [
+                -740,
+                460
+            ],
+            "parameters": {
+                "operation": "read",
+                "fileSelector": "={{ $json.filePath }}",
+                "options": {}
+            }
+        },
+        {
+            "id": "extract-order-001",
+            "name": "Parse Order CSV Rows",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "position": [
+                -540,
+                460
+            ],
+            "parameters": {
+                "operation": "csv",
+                "options": {}
+            }
+        },
+        {
+            "id": "pg-upsert-orders-001",
+            "name": "Upsert Orders Table",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -340,
+                460
+            ],
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES ('{{ $json.phone_number }}', '{{ $json.order_id }}', '{{ $json.product_name }}', {{ $json.quantity || 1 }}, '{{ $json.order_status }}', '{{ $json.order_date }}', now())\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET product_name = EXCLUDED.product_name, quantity = EXCLUDED.quantity, order_status = EXCLUDED.order_status, order_date = EXCLUDED.order_date, updated_at = now();",
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        },
+        {
+            "id": "merge-ingest-001",
+            "name": "Merge Ingestion Branches",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                80,
+                300
+            ],
+            "parameters": {
+                "mode": "append",
+                "options": {}
+            }
+        },
+        {
+            "id": "noop-ingest-done-001",
+            "name": "KB Ingestion Complete",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                280,
+                300
+            ],
+            "parameters": {}
+        },
+        {
+            "id": "webhook-001",
+            "name": "OpenWA Incoming Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -1400,
+                900
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "openwa-webhook",
+                "responseMode": "onReceived",
+                "responseData": "{\"success\":true}",
+                "options": {}
+            },
+            "webhookId": "openwa-webhook"
+        },
+        {
+            "id": "switch-event-001",
+            "name": "Route Incoming Event",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -1180,
+                900
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "outputKey": "text_message",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "typeValidation": "loose"
+                                },
+                                "combinator": "and",
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.body.event }}",
+                                        "rightValue": "message.received",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    },
+                                    {
+                                        "leftValue": "={{ $json.body.data.type }}",
+                                        "rightValue": "text",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "extra"
+                }
+            }
+        },
+        {
+            "id": "noop-ignore-001",
+            "name": "Ignore Non-Text Event",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -960,
+                1020
+            ],
+            "parameters": {}
+        },
+        {
+            "id": "set-extract-001",
+            "name": "Extract Message Data",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -960,
+                820
+            ],
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "e1",
+                            "name": "sessionId",
+                            "value": "={{ $json.body.sessionId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e2",
+                            "name": "chatId",
+                            "value": "={{ $json.body.data.chatId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e3",
+                            "name": "from",
+                            "value": "={{ $json.body.data.from }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e4",
+                            "name": "userMessage",
+                            "value": "={{ $json.body.data.body }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "pg-history-001",
+            "name": "Fetch Conversation History",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -740,
+                720
+            ],
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId }}' ORDER BY created_at DESC LIMIT 10;",
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        },
+        {
+            "id": "code-format-history-001",
+            "name": "Format Conversation History",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -540,
+                720
+            ],
+            "parameters": {
+                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
+            }
+        },
+        {
+            "id": "pg-orders-lookup-001",
+            "name": "Lookup Customer Orders",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -740,
+                980
+            ],
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT order_id, product_name, quantity, order_status, order_date FROM orders WHERE phone_number = '{{ $json.from }}' ORDER BY order_date DESC LIMIT 5;",
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        },
+        {
+            "id": "code-customer-context-001",
+            "name": "Build Customer Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -540,
+                980
+            ],
+            "parameters": {
+                "jsCode": "const orders = $input.all();\nconst isReturning = orders.length > 0;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
+            }
+        },
+        {
+            "id": "switch-customer-001",
+            "name": "Route by Customer Type",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -340,
+                980
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "outputKey": "returning",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "typeValidation": "loose"
+                                },
+                                "combinator": "and",
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.customerType }}",
+                                        "rightValue": "returning",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "outputKey": "new",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "typeValidation": "loose"
+                                },
+                                "combinator": "and",
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.customerType }}",
+                                        "rightValue": "new",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "set-returning-001",
+            "name": "Set Returning Customer Context",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -140,
+                900
+            ],
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "r1",
+                            "name": "customerContext",
+                            "value": "=Returning customer. {{ $json.ordersSummary }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "r2",
+                            "name": "priorityFlag",
+                            "value": "={{ true }}",
+                            "type": "boolean"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "set-new-001",
+            "name": "Set New Customer Context",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -140,
+                1060
+            ],
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "n1",
+                            "name": "customerContext",
+                            "value": "=New or unrecognized customer. No order history on file.",
+                            "type": "string"
+                        },
+                        {
+                            "id": "n2",
+                            "name": "priorityFlag",
+                            "value": "={{ false }}",
+                            "type": "boolean"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "merge-customer-001",
+            "name": "Merge Customer Context Branches",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                60,
+                980
+            ],
+            "parameters": {
+                "mode": "append",
+                "options": {}
+            }
+        },
+        {
+            "id": "merge-all-context-001",
+            "name": "Merge All Context",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                260,
+                850
+            ],
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineByPosition",
+                "options": {}
+            }
+        },
+        {
+            "id": "embed-query-001",
+            "name": "Embeddings OpenAI (Query)",
+            "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                460,
+                1120
+            ],
+            "parameters": {
+                "options": {}
+            },
+            "credentials": {
+                "openAiApi": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenAI account"
+                }
+            }
+        },
+        {
+            "id": "pgvector-query-001",
+            "name": "Query Knowledge Base",
+            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+            "typeVersion": 1,
+            "position": [
+                460,
+                980
+            ],
+            "parameters": {
+                "mode": "retrieve-as-tool",
+                "tableName": "kb_embeddings",
+                "toolName": "company_knowledge_base",
+                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
+                "topK": 4,
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        },
+        {
+            "id": "chatmodel-001",
+            "name": "Chat Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                460,
+                700
+            ],
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0.3
+                }
+            },
+            "credentials": {
+                "openAiApi": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenAI account"
+                }
+            }
+        },
+        {
+            "id": "memory-001",
+            "name": "Conversation Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+            "typeVersion": 1.3,
+            "position": [
+                460,
+                850
+            ],
+            "parameters": {
+                "sessionIdType": "customKey",
+                "sessionKey": "={{ $json.chatId }}",
+                "contextWindowLength": 5
+            }
+        },
+        {
+            "id": "agent-001",
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                660,
+                850
+            ],
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.userMessage }}",
+                "options": {
+                    "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g. order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in."
+                }
+            }
+        },
+        {
+            "id": "http-send-001",
+            "name": "Send Reply via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                880,
+                850
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').item.json.sessionId }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Extract Message Data').item.json.chatId, \"text\": $json.output } }}",
+                "options": {}
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA API Key"
+                }
+            }
+        },
+        {
+            "id": "pg-log-001",
+            "name": "Log Conversation",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1080,
+                850
+            ],
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES ('{{ $('Extract Message Data').item.json.chatId }}', '{{ $('Extract Message Data').item.json.from }}', '{{ $('Extract Message Data').item.json.sessionId }}', '{{ $('Extract Message Data').item.json.userMessage }}', '{{ $json.output }}', now());",
+                "options": {}
+            },
+            "credentials": {
+                "postgres": {
+                    "id": "REPLACE_ME",
+                    "name": "OpenWA Postgres (isolated)"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "KB Ingestion Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Define KB File List",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Define KB File List": {
+            "main": [
+                [
+                    {
+                        "node": "Route by KB Type",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by KB Type": {
+            "main": [
+                [
+                    {
+                        "node": "Read KB File (Embed)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Read Order Data CSV",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read KB File (Embed)": {
+            "main": [
+                [
+                    {
+                        "node": "Parse CSV Rows (Embed)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse CSV Rows (Embed)": {
+            "main": [
+                [
+                    {
+                        "node": "Format Rows as Chunks",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Rows as Chunks": {
+            "main": [
+                [
+                    {
+                        "node": "Insert into pgvector KB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embeddings OpenAI (Ingestion)": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "Insert into pgvector KB",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Insert into pgvector KB": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Ingestion Branches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Order Data CSV": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Order CSV Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Order CSV Rows": {
+            "main": [
+                [
+                    {
+                        "node": "Upsert Orders Table",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Upsert Orders Table": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Ingestion Branches",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Ingestion Branches": {
+            "main": [
+                [
+                    {
+                        "node": "KB Ingestion Complete",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenWA Incoming Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Route Incoming Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Incoming Event": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Message Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Ignore Non-Text Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Message Data": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Conversation History",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Lookup Customer Orders",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Conversation History": {
+            "main": [
+                [
+                    {
+                        "node": "Format Conversation History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Customer Orders": {
+            "main": [
+                [
+                    {
+                        "node": "Build Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Route by Customer Type",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by Customer Type": {
+            "main": [
+                [
+                    {
+                        "node": "Set Returning Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Set New Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Returning Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Customer Context Branches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set New Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Customer Context Branches",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Format Conversation History": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge Customer Context Branches": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Context",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge All Context": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Conversation Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Knowledge Base": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embeddings OpenAI (Query)": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "Query Knowledge Base",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Send Reply via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Reply via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Log Conversation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
