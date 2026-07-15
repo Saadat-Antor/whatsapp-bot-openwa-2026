@@ -164,7 +164,13 @@
             "position": [
                 1712,
                 848
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {
@@ -206,7 +212,13 @@
             "position": [
                 1520,
                 1136
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {},
@@ -359,7 +371,13 @@
             "position": [
                 1120,
                 1392
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {
@@ -387,7 +405,13 @@
             "position": [
                 1120,
                 1648
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {
@@ -560,7 +584,13 @@
             "position": [
                 2304,
                 1728
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {
@@ -620,7 +650,13 @@
             "position": [
                 2816,
                 1520
-            ]
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "VCnGBYqasp6BkSxG",
+                    "name": "Header Auth account"
+                }
+            }
         },
         {
             "parameters": {
@@ -635,7 +671,13 @@
             "position": [
                 3024,
                 1520
-            ]
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         },
         {
             "parameters": {},
@@ -649,8 +691,8 @@
             "name": "Embeddings Gemini(Ingestion)",
             "credentials": {
                 "googlePalmApi": {
-                    "id": "Li7rLIbDUL2egSir",
-                    "name": "Google Gemini(PaLM) Api account"
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
                 }
             }
         },
@@ -666,8 +708,8 @@
             "name": "Embeddings Gemini(Query)",
             "credentials": {
                 "googlePalmApi": {
-                    "id": "Li7rLIbDUL2egSir",
-                    "name": "Google Gemini(PaLM) Api account"
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
                 }
             }
         },
@@ -685,8 +727,8 @@
             "name": "Chat Model",
             "credentials": {
                 "googlePalmApi": {
-                    "id": "Li7rLIbDUL2egSir",
-                    "name": "Google Gemini(PaLM) Api account"
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
                 }
             }
         }
@@ -1055,7 +1097,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "00f4bd68-6f96-4f8b-b5fd-0dc396f37bc8",
+    "versionId": "aa1803f2-0ec5-4d88-b35b-f606c5b127b0",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
