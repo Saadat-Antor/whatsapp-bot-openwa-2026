@@ -1,4 +1,6 @@
-OrderID,CustomerPhone,Status,TotalAmount,ItemsOrdered,TrackingNumber
-ORD-9921,+15550192834,Shipped,39.98,2x Knitted Baby Beanie,1Z999AA10123456784
-ORD-9922,+15550147281,Processing,64.98,1x Organic Cotton Onesie; 1x Bamboo Sleep Sack,PENDING
-ORD-9923,+15550183749,Delivered,24.99,1x Organic Cotton Onesie,1Z999AA10123456789
+phone_number,order_id,product_name,quantity,order_status,order_date
++1234567890,ORD-001,Organic Cotton Onesie,2,Shipped,2026-07-10
++1987654321,ORD-002,Toddler Denim Jacket,1,Processing,2026-07-14
++1555123456,ORD-003,Merino Wool Baby Beanie,1,Delivered,2026-07-05
++1234567890,ORD-004,Fleece Sleep Sack,1,Processing,2026-07-15
++8801345863767,ORD-005,Denim Bag Small,20,Shipped,2026-07-08
