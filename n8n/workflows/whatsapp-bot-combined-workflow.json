@@ -61,10 +61,9 @@
                                 "options": {
                                     "caseSensitive": true,
                                     "leftValue": "",
-                                    "typeValidation": "loose",
+                                    "typeValidation": "strict",
                                     "version": 1
                                 },
-                                "combinator": "and",
                                 "conditions": [
                                     {
                                         "leftValue": "={{ $json.kbType }}",
@@ -72,9 +71,11 @@
                                         "operator": {
                                             "type": "string",
                                             "operation": "equals"
-                                        }
+                                        },
+                                        "id": "276b1a86-40a1-44ca-8111-53e5c9faf4d2"
                                     }
-                                ]
+                                ],
+                                "combinator": "and"
                             }
                         },
                         {
@@ -82,10 +83,9 @@
                                 "options": {
                                     "caseSensitive": true,
                                     "leftValue": "",
-                                    "typeValidation": "loose",
+                                    "typeValidation": "strict",
                                     "version": 1
                                 },
-                                "combinator": "and",
                                 "conditions": [
                                     {
                                         "leftValue": "={{ $json.kbType }}",
@@ -93,9 +93,11 @@
                                         "operator": {
                                             "type": "string",
                                             "operation": "equals"
-                                        }
+                                        },
+                                        "id": "56942169-b78e-42a1-8f7e-93d603ec7105"
                                     }
-                                ]
+                                ],
+                                "combinator": "and"
                             }
                         }
                     ]
@@ -134,7 +136,7 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                1312,
+                1296,
                 848
             ]
         },
@@ -162,8 +164,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                1712,
-                848
+                1728,
+                736
             ],
             "credentials": {
                 "postgres": {
@@ -183,7 +185,7 @@
             "typeVersion": 1,
             "position": [
                 1120,
-                1136
+                1120
             ]
         },
         {
@@ -195,7 +197,7 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                1312,
+                1296,
                 1136
             ]
         },
@@ -227,8 +229,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                1936,
-                976
+                2112,
+                1120
             ]
         },
         {
@@ -238,8 +240,8 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                2128,
-                976
+                2352,
+                1136
             ]
         },
         {
@@ -361,7 +363,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId }}' ORDER BY created_at DESC LIMIT 10;",
+                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId.replace(\"@c.us\", \"\") }}' ORDER BY created_at DESC LIMIT 10;",
                 "options": {}
             },
             "id": "99214122-38a4-42fe-8a70-b6e25e6b71f8",
@@ -372,6 +374,7 @@
                 1120,
                 1392
             ],
+            "alwaysOutputData": true,
             "credentials": {
                 "postgres": {
                     "id": "8olY1vTNf4hRmiBK",
@@ -395,7 +398,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT order_id, product_name, quantity, order_status, order_date FROM orders WHERE phone_number = '{{ $json.from }}' ORDER BY order_date DESC LIMIT 5;",
+                "query": "SELECT order_id, product_name, quantity, order_status, order_date \nFROM orders \nWHERE phone_number = '+{{ $json.from.replace(\"@c.us\", \"\") }}' \nORDER BY order_date DESC \nLIMIT 5;",
                 "options": {}
             },
             "id": "11872c86-da94-47d7-8e09-fedef01fffc4",
@@ -653,15 +656,15 @@
             ],
             "credentials": {
                 "httpHeaderAuth": {
-                    "id": "VCnGBYqasp6BkSxG",
-                    "name": "Header Auth account"
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
                 }
             }
         },
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES ('{{ $('Extract Message Data').item.json.chatId }}', '{{ $('Extract Message Data').item.json.from }}', '{{ $('Extract Message Data').item.json.sessionId }}', '{{ $('Extract Message Data').item.json.userMessage }}', '{{ $json.output }}', now());",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES ('{{ $('Extract Message Data').item.json.chatId }}', '{{ $('Extract Message Data').item.json.from }}', '{{ $('Extract Message Data').item.json.sessionId }}', '{{ $('Extract Message Data').item.json.userMessage }}', '{{ $('AI Agent').item.json.output }}', now());",
                 "options": {}
             },
             "id": "0a3de8c8-cb3b-46fd-aef7-7784dee8e433",
@@ -684,8 +687,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                1648,
-                1008
+                1680,
+                960
             ],
             "id": "acffddd2-368a-486e-8cc0-86f7cec9a20e",
             "name": "Embeddings Gemini(Ingestion)",
@@ -731,6 +734,19 @@
                     "name": "Google Gemini(PaLM) Api account (openwa)"
                 }
             }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+            "typeVersion": 1.1,
+            "position": [
+                1840,
+                944
+            ],
+            "id": "06809704-8133-4266-9e5a-c1c627352a37",
+            "name": "Default Data Loader"
         }
     ],
     "pinData": {},
@@ -1090,14 +1106,25 @@
                     }
                 ]
             ]
+        },
+        "Default Data Loader": {
+            "ai_document": [
+                [
+                    {
+                        "node": "Insert into pgvector KB",
+                        "type": "ai_document",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
-    "active": false,
+    "active": true,
     "settings": {
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "aa1803f2-0ec5-4d88-b35b-f606c5b127b0",
+    "versionId": "88c0ad67-02ba-4291-a1b5-2cc0cb4b08cf",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
