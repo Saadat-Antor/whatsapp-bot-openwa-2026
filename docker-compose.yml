@@ -36,13 +36,17 @@ services:
       - "${OPENWA_PORT:-2785}:2785"
     environment:
       NODE_ENV: production
-      # Points at the EXISTING Postgres container (on the shared network),
-      # using the isolated database + user created by scripts/init-db.sql.
-      DATABASE_URL: "postgresql://${OPENWA_DB_USER}:${OPENWA_DB_PASSWORD}@${EXISTING_POSTGRES_HOST}:${EXISTING_POSTGRES_PORT:-5432}/${OPENWA_DB_NAME}"
-      # MCP surface off by default — not needed for this project.
+      DATABASE_TYPE: "postgres"
+      DATABASE_HOST: "sms-agency-server-postgres-1"
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: "openwa_bot_user"
+      DATABASE_PASSWORD: "alien20b"
+      DATABASE_NAME: "openwa_bot_db"
       MCP_ENABLED: "false"
-      # Maps the API key from your .env file into the container for secure access
+      WEBHOOK_SSRF_PROTECT: "false"
       OPENWA_API_KEY: "${OPENWA_API_KEY}"
+      WEBHOOK_URL: "http://n8n:5678/webhook-test/openwa-webhook"
+      ENGINE_TYPE: "baileys"
     volumes:
       - ./data/openwa:/app/data
     networks:
