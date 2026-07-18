@@ -1,6 +1,6 @@
 phone_number,order_id,product_name,quantity,order_status,order_date
-+1234567890,ORD-001,Organic Cotton Onesie,2,Shipped,2026-07-10
-+1987654321,ORD-002,Toddler Denim Jacket,1,Processing,2026-07-14
-+1555123456,ORD-003,Merino Wool Baby Beanie,1,Delivered,2026-07-05
-+1234567890,ORD-004,Fleece Sleep Sack,1,Processing,2026-07-15
-+8801345863767,ORD-005,Denim Bag Small,20,Shipped,2026-07-08
+1234567890,ORD-001,Organic Cotton Onesie,2,Shipped,2026-07-10
+1987654321,ORD-002,Toddler Denim Jacket,1,Processing,2026-07-14
+555123456,ORD-003,Merino Wool Baby Beanie,1,Delivered,2026-07-05
+234567890,ORD-004,Fleece Sleep Sack,1,Processing,2026-07-15
+01345863767,ORD-005,Denim Bag Small,20,Shipped,2026-07-08
