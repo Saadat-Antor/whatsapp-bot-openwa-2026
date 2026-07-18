@@ -52,7 +52,6 @@
                 "columns": {
                     "mappingMode": "defineBelow",
                     "value": {
-                        "id": 0,
                         "chat_id": "={{ $('Extract Message Data').item.json.chatId.replace(\"@c.us\", \"\") }}",
                         "from_number": "={{ $('Extract Message Data').item.json.from.replace(\"@c.us\", \"\") }}",
                         "session_id": "={{ $('Extract Message Data').item.json.sessionId }}",
@@ -71,7 +70,7 @@
                             "display": true,
                             "type": "number",
                             "canBeUsedToMatch": true,
-                            "removed": false
+                            "removed": true
                         },
                         {
                             "id": "chat_id",
@@ -138,8 +137,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1392,
-                4528
+                1776,
+                4464
             ],
             "credentials": {
                 "postgres": {
@@ -944,6 +943,27 @@
                 544,
                 4320
             ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                1408,
+                4528
+            ],
+            "id": "22395edb-e4ab-408b-b109-5e24c0673677",
+            "name": "Log Conversation1",
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
         }
     ],
     "pinData": {},
@@ -952,7 +972,7 @@
             "main": [
                 [
                     {
-                        "node": "Log Conversation",
+                        "node": "Log Conversation1",
                         "type": "main",
                         "index": 0
                     }
@@ -1365,12 +1385,12 @@
             ]
         }
     },
-    "active": true,
+    "active": false,
     "settings": {
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "8ed0b7e5-db6e-4b8a-b1b2-fea005952c33",
+    "versionId": "f76a3642-543c-43a2-8bdc-bc122c2f0d05",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
