@@ -38,117 +38,6 @@
         },
         {
             "parameters": {
-                "schema": {
-                    "__rl": true,
-                    "mode": "list",
-                    "value": "public"
-                },
-                "table": {
-                    "__rl": true,
-                    "value": "conversations",
-                    "mode": "list",
-                    "cachedResultName": "conversations"
-                },
-                "columns": {
-                    "mappingMode": "defineBelow",
-                    "value": {
-                        "chat_id": "={{ $('Extract Message Data').item.json.chatId.replace(\"@c.us\", \"\") }}",
-                        "from_number": "={{ $('Extract Message Data').item.json.from.replace(\"@c.us\", \"\") }}",
-                        "session_id": "={{ $('Extract Message Data').item.json.sessionId }}",
-                        "user_message": "={{ $('Extract Message Data').item.json.userMessage }}",
-                        "bot_reply": "={{ $('Parse Order Intent').item.json.output }}"
-                    },
-                    "matchingColumns": [
-                        "id"
-                    ],
-                    "schema": [
-                        {
-                            "id": "id",
-                            "displayName": "id",
-                            "required": false,
-                            "defaultMatch": true,
-                            "display": true,
-                            "type": "number",
-                            "canBeUsedToMatch": true,
-                            "removed": true
-                        },
-                        {
-                            "id": "chat_id",
-                            "displayName": "chat_id",
-                            "required": true,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "string",
-                            "canBeUsedToMatch": true
-                        },
-                        {
-                            "id": "from_number",
-                            "displayName": "from_number",
-                            "required": false,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "string",
-                            "canBeUsedToMatch": true
-                        },
-                        {
-                            "id": "session_id",
-                            "displayName": "session_id",
-                            "required": false,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "string",
-                            "canBeUsedToMatch": true
-                        },
-                        {
-                            "id": "user_message",
-                            "displayName": "user_message",
-                            "required": false,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "string",
-                            "canBeUsedToMatch": true
-                        },
-                        {
-                            "id": "bot_reply",
-                            "displayName": "bot_reply",
-                            "required": false,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "string",
-                            "canBeUsedToMatch": true
-                        },
-                        {
-                            "id": "created_at",
-                            "displayName": "created_at",
-                            "required": false,
-                            "defaultMatch": false,
-                            "display": true,
-                            "type": "dateTime",
-                            "canBeUsedToMatch": true
-                        }
-                    ],
-                    "attemptToConvertTypes": false,
-                    "convertFieldsToString": false
-                },
-                "options": {}
-            },
-            "id": "6333efea-6db1-4a77-b58a-9de71c0b6616",
-            "name": "Log Conversation",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1776,
-                4464
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
                 "operation": "executeQuery",
                 "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  '+{{ $json.from.replace(\"@c.us\", \"\") }}',\n  '{{ JSON.stringify($json.orderData) }}'::jsonb,\n  FALSE\nWHERE {{ $json.hasOrder }} = TRUE;",
                 "options": {}
@@ -186,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g. order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n\nIf a customer asks to buy something or place an order, use the 'create_order_intake' tool to record their request. Once the tool returns success, immediately tell the customer that their order is being processed.\n\n- Order Processing Intent: If the customer explicitly states they want to buy a product or place a new order, you must append this exact formatting tag to the absolute end of your response: |||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||. Replace NAME with the exact product title they requested and NUMBER with the integer quantity. Do not include this tag if they are only asking informational questions or checking order status."
+                    "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g., order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n\nORDER WORKFLOW RULE:\nYou MUST use a strict 2-step process whenever a customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 3 Denim Bag Small items. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: If the user changes their mind or corrects the quantity during Step 1, update the summary and ask for confirmation again. Never output the |||ORDER:...||| tag if they are only asking informational questions, checking order status, or have not given final confirmation."
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -1390,7 +1279,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "f76a3642-543c-43a2-8bdc-bc122c2f0d05",
+    "versionId": "7984e59b-2461-4d0d-b889-6120b0b2da98",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
