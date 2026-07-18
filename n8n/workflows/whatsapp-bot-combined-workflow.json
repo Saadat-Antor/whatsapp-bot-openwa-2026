@@ -3,6 +3,692 @@
     "nodes": [
         {
             "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').item.json.sessionId }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Extract Message Data').item.json.chatId, \"text\": $json.output } }}",
+                "options": {}
+            },
+            "id": "220d9510-df18-4df5-a322-3543ce59fe60",
+            "name": "Send Reply via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1200,
+                4528
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "schema": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "public"
+                },
+                "table": {
+                    "__rl": true,
+                    "value": "conversations",
+                    "mode": "list",
+                    "cachedResultName": "conversations"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "id": 0,
+                        "chat_id": "={{ $('Extract Message Data').item.json.chatId.replace(\"@c.us\", \"\") }}",
+                        "from_number": "={{ $('Extract Message Data').item.json.from.replace(\"@c.us\", \"\") }}",
+                        "session_id": "={{ $('Extract Message Data').item.json.sessionId }}",
+                        "user_message": "={{ $('Extract Message Data').item.json.userMessage }}",
+                        "bot_reply": "={{ $('Parse Order Intent').item.json.output }}"
+                    },
+                    "matchingColumns": [
+                        "id"
+                    ],
+                    "schema": [
+                        {
+                            "id": "id",
+                            "displayName": "id",
+                            "required": false,
+                            "defaultMatch": true,
+                            "display": true,
+                            "type": "number",
+                            "canBeUsedToMatch": true,
+                            "removed": false
+                        },
+                        {
+                            "id": "chat_id",
+                            "displayName": "chat_id",
+                            "required": true,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "from_number",
+                            "displayName": "from_number",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "session_id",
+                            "displayName": "session_id",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "user_message",
+                            "displayName": "user_message",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "bot_reply",
+                            "displayName": "bot_reply",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "created_at",
+                            "displayName": "created_at",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "dateTime",
+                            "canBeUsedToMatch": true
+                        }
+                    ],
+                    "attemptToConvertTypes": false,
+                    "convertFieldsToString": false
+                },
+                "options": {}
+            },
+            "id": "6333efea-6db1-4a77-b58a-9de71c0b6616",
+            "name": "Log Conversation",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1392,
+                4528
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  '+{{ $json.from.replace(\"@c.us\", \"\") }}',\n  '{{ JSON.stringify($json.orderData) }}'::jsonb,\n  FALSE\nWHERE {{ $json.hasOrder }} = TRUE;",
+                "options": {}
+            },
+            "id": "62024b8f-d3af-4471-a2ca-dcc02fa4e6e7",
+            "name": "Conditional Staging Insert",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1200,
+                4704
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const item = $input.item;\nlet text = item.json.output;\nlet hasOrder = false;\nlet orderData = {};\n\nconst match = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (match) {\n    hasOrder = true;\n    try {\n        orderData = JSON.parse(match[1]);\n    } catch (e) {\n        orderData = { error: \"Failed to parse intent JSON\", raw: match[1] };\n    }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        from: $('Extract Message Data').first().json.from\n    }\n};"
+            },
+            "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
+            "name": "Parse Order Intent",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1008,
+                4704
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.userMessage }}",
+                "options": {
+                    "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g. order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n\nIf a customer asks to buy something or place an order, use the 'create_order_intake' tool to record their request. Once the tool returns success, immediately tell the customer that their order is being processed.\n\n- Order Processing Intent: If the customer explicitly states they want to buy a product or place a new order, you must append this exact formatting tag to the absolute end of your response: |||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||. Replace NAME with the exact product title they requested and NUMBER with the integer quantity. Do not include this tag if they are only asking informational questions or checking order status."
+                }
+            },
+            "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                704,
+                4704
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "retrieve-as-tool",
+                "toolName": "company_knowledge_base",
+                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
+                "tableName": "kb_embeddings",
+                "options": {}
+            },
+            "id": "0dff7e99-dee3-4904-b952-5278f139bb0b",
+            "name": "Query Knowledge Base",
+            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+            "typeVersion": 1,
+            "position": [
+                512,
+                4928
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                768,
+                4976
+            ],
+            "id": "123b9679-e477-4036-9996-42f72e751176",
+            "name": "Chat Model",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "sessionIdType": "customKey",
+                "sessionKey": "={{ $json.chatId }}"
+            },
+            "id": "e3ce3935-51f3-45ad-85a1-81605d811564",
+            "name": "Conversation Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+            "typeVersion": 1.3,
+            "position": [
+                512,
+                4704
+            ]
+        },
+        {
+            "parameters": {},
+            "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                528,
+                5104
+            ],
+            "id": "3f9f3677-a4db-4f21-a8d6-4232871bdd8b",
+            "name": "Embeddings Gemini(Query)",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineByPosition",
+                "options": {}
+            },
+            "id": "8091db8b-3244-4e5e-bcfd-f51353659b8a",
+            "name": "Merge All Context",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                304,
+                4704
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "ec2aca4c-dfd4-41d8-be79-fedd1aa678a2",
+            "name": "Merge Customer Context Branches",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                112,
+                4832
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "r1",
+                            "name": "customerContext",
+                            "value": "=Returning customer. {{ $json.ordersSummary }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "r2",
+                            "name": "priorityFlag",
+                            "value": "={{ true }}",
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "f428fbe4-e39b-4d62-b532-b59d9380fde9",
+            "name": "Set Returning Customer Context",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -96,
+                4720
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "n1",
+                            "name": "customerContext",
+                            "value": "=New or unrecognized customer. No order history on file.",
+                            "type": "string"
+                        },
+                        {
+                            "id": "n2",
+                            "name": "priorityFlag",
+                            "value": "={{ false }}",
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "7adee70c-b9fd-4b3e-9bc4-0c3d516d3e8b",
+            "name": "Set New Customer Context",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -96,
+                4912
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.customerType }}",
+                                        "rightValue": "returning",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "id": "be3abc80-5a08-4864-8c21-bfa9d5c0c0bf"
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.customerType }}",
+                                        "rightValue": "new",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "id": "626967aa-2f93-47e1-9fd2-f5747d8cbddd"
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "bd6935c5-8602-42df-819b-865459cbe5be",
+            "name": "Route by Customer Type",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -288,
+                4832
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
+            },
+            "id": "915b1731-652c-4ea1-acbf-9d497c817b82",
+            "name": "Format Conversation History",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -496,
+                4576
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const orders = $input.all();\n\n// Verify we have items AND the first item actually contains a real database order_id\nconst isReturning = orders.length > 0 && orders[0].json.order_id !== undefined;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
+            },
+            "id": "a13a8070-b456-4aed-898c-cc1cba77de00",
+            "name": "Build Customer Context",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -496,
+                4832
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId.replace(\"@c.us\", \"\") }}' ORDER BY created_at DESC LIMIT 10;",
+                "options": {}
+            },
+            "id": "ae1c66ac-50b9-4a75-a7a0-361a7ffd2b98",
+            "name": "Fetch Conversation History",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -688,
+                4576
+            ],
+            "alwaysOutputData": true,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT order_id, product_name, quantity, order_status, order_date \nFROM orders \nWHERE phone_number = '+{{ $json.from.replace(\"@c.us\", \"\") }}' \nORDER BY order_date DESC \nLIMIT 5;",
+                "options": {}
+            },
+            "id": "e66147ac-94c3-4556-a281-3655f8f381c9",
+            "name": "Lookup Customer Orders",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -688,
+                4832
+            ],
+            "alwaysOutputData": true,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "e1",
+                            "name": "sessionId",
+                            "value": "={{ $json.body.sessionId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e2",
+                            "name": "chatId",
+                            "value": "={{ $json.body.data.chatId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e3",
+                            "name": "from",
+                            "value": "={{ $json.body.data.from }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "e4",
+                            "name": "userMessage",
+                            "value": "={{ $json.body.data.body }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "477f2ee3-d482-4df6-a10a-dd0293608bb2",
+            "name": "Extract Message Data",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                -912,
+                4672
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "4a01e946-635d-448c-90b3-95fa81412842",
+            "name": "Ignore Non-Text Event",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -912,
+                4880
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.body.event }}",
+                                        "rightValue": "message.received",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "id": "1333170b-65cd-4aaf-b829-19d4ad0875e8"
+                                    },
+                                    {
+                                        "leftValue": "={{ $json.body.data.type }}",
+                                        "rightValue": "text",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "id": "0e9e53ae-d425-4b99-be0e-8447731e489e"
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "extra"
+                }
+            },
+            "id": "abc16941-d1ce-44ff-9e30-1b85ac6f204c",
+            "name": "Route Incoming Event",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -1136,
+                4752
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "openwa-webhook",
+                "options": {}
+            },
+            "id": "ec5fd393-7192-4a18-a0de-f4d2653e148a",
+            "name": "OpenWA Incoming Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -1360,
+                4752
+            ],
+            "webhookId": "openwa-webhook"
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "9df80dde-6a74-4449-9ae8-848d37401874",
+            "name": "Queue Sync Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -1024,
+                5360
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT id, phone_number, extracted_json FROM order_intake_queue WHERE processed = FALSE LIMIT 50;",
+                "options": {}
+            },
+            "id": "1e752f0b-b81c-45d3-a233-58110a68c2e9",
+            "name": "Fetch Unprocessed Queue",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -800,
+                5360
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES (\n  $${{ $json.phone_number }}$$,\n  $${{ $json.extracted_json?.order_id || \"ORD-\" + Math.floor(100000 + Math.random() * 900000) }}$$,\n  $${{ $json.extracted_json?.product_name }}$$,\n  {{ $json.extracted_json?.quantity || 1 }},\n  $${{ $json.extracted_json?.order_status || \"Processing\" }}$$,\n  CURRENT_DATE,\n  now()\n)\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  order_status = EXCLUDED.order_status,\n  order_date = EXCLUDED.order_date,\n  updated_at = now();",
+                "options": {}
+            },
+            "id": "bf2e883d-2951-45e9-a918-94797f6f59cd",
+            "name": "Process & Sync to Orders Table",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -576,
+                5360
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE order_intake_queue SET processed = TRUE WHERE id = {{ $('Fetch Unprocessed Queue').item.json.id }};",
+                "options": {}
+            },
+            "id": "2cac7265-4344-4785-96c8-e321c5c03140",
+            "name": "Mark Queue Rows as Processed",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -352,
+                5360
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
                 "rule": {
                     "interval": [
                         {
@@ -15,26 +701,26 @@
                     ]
                 }
             },
-            "id": "6f752412-b7e7-404f-bb99-55be732b9772",
+            "id": "64cd4937-e1ea-4060-b7da-ed7955ae454c",
             "name": "KB Ingestion Schedule",
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                448,
-                976
+                -1360,
+                4160
             ]
         },
         {
             "parameters": {
                 "jsCode": "return [\n  { json: { fileName: 'customer_qnas.csv', filePath: '/data/kb/customer_qnas.csv', kbType: 'embed', sourceLabel: 'faq' } },\n  { json: { fileName: 'product_info.csv', filePath: '/data/kb/product_info.csv', kbType: 'embed', sourceLabel: 'product' } },\n  { json: { fileName: 'order_data.csv', filePath: '/data/kb/order_data.csv', kbType: 'relational', sourceLabel: 'orders' } }\n];"
             },
-            "id": "0e212499-1c1b-4622-b487-ad02c9785720",
+            "id": "56f188a3-1d77-43fc-9532-6a319ebe300c",
             "name": "Define KB File List",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                672,
-                976
+                -1136,
+                4160
             ]
         },
         {
@@ -89,13 +775,13 @@
                 },
                 "options": {}
             },
-            "id": "b07ecd29-e9f7-4986-8fe3-33bd42527178",
+            "id": "700769eb-61e3-49d8-b238-67dba8e26b24",
             "name": "Route by KB Type",
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                896,
-                976
+                -912,
+                4160
             ]
         },
         {
@@ -103,87 +789,66 @@
                 "fileSelector": "={{ $json.filePath }}",
                 "options": {}
             },
-            "id": "f6300564-d4fd-4c2a-87c8-8c4324888376",
+            "id": "06f0986c-b2b1-43d8-8738-24c192c587d3",
             "name": "Read KB File (Embed)",
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                1120,
-                848
+                -688,
+                4032
+            ]
+        },
+        {
+            "parameters": {
+                "fileSelector": "={{ $json.filePath }}",
+                "options": {}
+            },
+            "id": "a1db0bd1-cd62-47c9-b7b0-e4fa7cf33319",
+            "name": "Read Order Data CSV",
+            "type": "n8n-nodes-base.readWriteFile",
+            "typeVersion": 1,
+            "position": [
+                -688,
+                4304
             ]
         },
         {
             "parameters": {
                 "options": {}
             },
-            "id": "7bb829b9-7412-42e7-a84e-46e0d369f382",
+            "id": "c71777fe-6261-48bb-ba42-1235e5679697",
             "name": "Parse CSV Rows (Embed)",
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                1296,
-                848
+                -512,
+                4032
+            ]
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "3dda69b7-b6fb-4bbd-a028-8a8627ff7502",
+            "name": "Parse Order CSV Rows",
+            "type": "n8n-nodes-base.extractFromFile",
+            "typeVersion": 1,
+            "position": [
+                -512,
+                4320
             ]
         },
         {
             "parameters": {
                 "jsCode": "// Turns each CSV row into a text chunk + metadata for embedding.\n// Handles both customer_qnas.csv (Category, Question, Answer, Reference_URL)\n// and product_info.csv (product_name, category, description, price, sku, availability).\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const row = item.json;\n  let pageContent = '';\n\n  if (row.Question || row.question) {\n    const q = row.Question || row.question;\n    const a = row.Answer || row.answer;\n    const cat = row.Category || row.category || '';\n    pageContent = `Category: ${cat}\\nQ: ${q}\\nA: ${a}`;\n  } else if (row.product_name) {\n    pageContent = `Product: ${row.product_name}\\nCategory: ${row.category || ''}\\nDescription: ${row.description || ''}\\nPrice: ${row.price || ''}\\nSKU: ${row.sku || ''}\\nAvailability: ${row.availability || ''}`;\n  } else {\n    // Fallback: dump all columns\n    pageContent = Object.entries(row).map(([k, v]) => `${k}: ${v}`).join('\\n');\n  }\n\n  out.push({\n    json: {\n      pageContent,\n      metadata: { source: $('Define KB File List').first().json.fileName, sourceLabel: $('Define KB File List').first().json.sourceLabel }\n    }\n  });\n}\n\nreturn out;"
             },
-            "id": "dc2543c7-a947-468d-83a1-1edb8f2cab86",
+            "id": "ffae7d2b-3621-48dc-8753-69eafaf1cce6",
             "name": "Format Rows as Chunks",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                1520,
-                848
-            ]
-        },
-        {
-            "parameters": {
-                "mode": "insert",
-                "tableName": "kb_embeddings",
-                "options": {}
-            },
-            "id": "80dc2fdf-96a9-451e-b2ee-476424a2efbd",
-            "name": "Insert into pgvector KB",
-            "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
-            "typeVersion": 1,
-            "position": [
-                1728,
-                736
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "fileSelector": "={{ $json.filePath }}",
-                "options": {}
-            },
-            "id": "6dd63130-30bb-4eb1-8ba9-ea9d2b634463",
-            "name": "Read Order Data CSV",
-            "type": "n8n-nodes-base.readWriteFile",
-            "typeVersion": 1,
-            "position": [
-                1120,
-                1120
-            ]
-        },
-        {
-            "parameters": {
-                "options": {}
-            },
-            "id": "0c5a3644-e070-43cb-af91-31aede43c057",
-            "name": "Parse Order CSV Rows",
-            "type": "n8n-nodes-base.extractFromFile",
-            "typeVersion": 1,
-            "position": [
-                1296,
-                1136
+                -288,
+                4032
             ]
         },
         {
@@ -192,13 +857,13 @@
                 "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES ('{{ $json.phone_number }}', '{{ $json.order_id }}', '{{ $json.product_name }}', {{ $json.quantity || 1 }}, '{{ $json.order_status }}', '{{ $json.order_date }}', now())\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET product_name = EXCLUDED.product_name, quantity = EXCLUDED.quantity, order_status = EXCLUDED.order_status, order_date = EXCLUDED.order_date, updated_at = now();",
                 "options": {}
             },
-            "id": "3c0f5b87-2834-473a-9314-1522db4b4c0f",
+            "id": "c8ff3aa8-3a1a-475e-b078-282a0481cfdd",
             "name": "Upsert Orders Table",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1520,
-                1136
+                -288,
+                4320
             ],
             "credentials": {
                 "postgres": {
@@ -208,458 +873,18 @@
             }
         },
         {
-            "parameters": {},
-            "id": "922d60c2-1411-41bd-a918-82918386b0b8",
-            "name": "Merge Ingestion Branches",
-            "type": "n8n-nodes-base.merge",
-            "typeVersion": 3,
-            "position": [
-                2112,
-                1120
-            ]
-        },
-        {
-            "parameters": {},
-            "id": "ca097b0f-1952-4ce2-910c-6235071e9e13",
-            "name": "KB Ingestion Complete",
-            "type": "n8n-nodes-base.noOp",
-            "typeVersion": 1,
-            "position": [
-                2352,
-                1136
-            ]
-        },
-        {
             "parameters": {
-                "httpMethod": "POST",
-                "path": "openwa-webhook",
-                "options": {}
-            },
-            "id": "95ffe4a6-5410-4e60-bea1-61e244cbeb32",
-            "name": "OpenWA Incoming Webhook",
-            "type": "n8n-nodes-base.webhook",
-            "typeVersion": 2,
-            "position": [
-                448,
-                1568
-            ],
-            "webhookId": "openwa-webhook"
-        },
-        {
-            "parameters": {
-                "rules": {
-                    "values": [
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "loose",
-                                    "version": 1
-                                },
-                                "combinator": "and",
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.body.event }}",
-                                        "rightValue": "message.received",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    },
-                                    {
-                                        "leftValue": "={{ $json.body.data.type }}",
-                                        "rightValue": "text",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                "options": {
-                    "fallbackOutput": "extra"
-                }
-            },
-            "id": "cfd4e3e0-b9ed-4dcb-9f83-8cb2af5de15c",
-            "name": "Route Incoming Event",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                672,
-                1568
-            ]
-        },
-        {
-            "parameters": {},
-            "id": "aeff0643-ab93-4a12-a4a8-e89990da065f",
-            "name": "Ignore Non-Text Event",
-            "type": "n8n-nodes-base.noOp",
-            "typeVersion": 1,
-            "position": [
-                896,
-                1696
-            ]
-        },
-        {
-            "parameters": {
-                "assignments": {
-                    "assignments": [
-                        {
-                            "id": "e1",
-                            "name": "sessionId",
-                            "value": "={{ $json.body.sessionId }}",
-                            "type": "string"
-                        },
-                        {
-                            "id": "e2",
-                            "name": "chatId",
-                            "value": "={{ $json.body.data.chatId }}",
-                            "type": "string"
-                        },
-                        {
-                            "id": "e3",
-                            "name": "from",
-                            "value": "={{ $json.body.data.from }}",
-                            "type": "string"
-                        },
-                        {
-                            "id": "e4",
-                            "name": "userMessage",
-                            "value": "={{ $json.body.data.body }}",
-                            "type": "string"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "a4e9f6f5-be72-4bfe-8716-703c39d7d348",
-            "name": "Extract Message Data",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.4,
-            "position": [
-                896,
-                1488
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId.replace(\"@c.us\", \"\") }}' ORDER BY created_at DESC LIMIT 10;",
-                "options": {}
-            },
-            "id": "99214122-38a4-42fe-8a70-b6e25e6b71f8",
-            "name": "Fetch Conversation History",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1120,
-                1392
-            ],
-            "alwaysOutputData": true,
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
-            },
-            "id": "121d796f-bb00-45ee-9afb-aa15af989e0c",
-            "name": "Format Conversation History",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                1312,
-                1392
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "SELECT order_id, product_name, quantity, order_status, order_date \nFROM orders \nWHERE phone_number = '+{{ $json.from.replace(\"@c.us\", \"\") }}' \nORDER BY order_date DESC \nLIMIT 5;",
-                "options": {}
-            },
-            "id": "11872c86-da94-47d7-8e09-fedef01fffc4",
-            "name": "Lookup Customer Orders",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1120,
-                1648
-            ],
-            "alwaysOutputData": true,
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "jsCode": "const orders = $input.all();\n\n// Verify we have items AND the first item actually contains a real database order_id\nconst isReturning = orders.length > 0 && orders[0].json.order_id !== undefined;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
-            },
-            "id": "f6bf0372-93a8-4c48-96fb-0db8aaafe971",
-            "name": "Build Customer Context",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                1312,
-                1648
-            ]
-        },
-        {
-            "parameters": {
-                "rules": {
-                    "values": [
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "loose",
-                                    "version": 1
-                                },
-                                "combinator": "and",
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.customerType }}",
-                                        "rightValue": "returning",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "loose",
-                                    "version": 1
-                                },
-                                "combinator": "and",
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.customerType }}",
-                                        "rightValue": "new",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "da510805-4c64-42ab-acca-4d7847e105f2",
-            "name": "Route by Customer Type",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                1520,
-                1648
-            ]
-        },
-        {
-            "parameters": {
-                "assignments": {
-                    "assignments": [
-                        {
-                            "id": "r1",
-                            "name": "customerContext",
-                            "value": "=Returning customer. {{ $json.ordersSummary }}",
-                            "type": "string"
-                        },
-                        {
-                            "id": "r2",
-                            "name": "priorityFlag",
-                            "value": "={{ true }}",
-                            "type": "boolean"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "27341af0-1579-492b-b480-a82fd823a06f",
-            "name": "Set Returning Customer Context",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.4,
-            "position": [
-                1712,
-                1568
-            ]
-        },
-        {
-            "parameters": {
-                "assignments": {
-                    "assignments": [
-                        {
-                            "id": "n1",
-                            "name": "customerContext",
-                            "value": "=New or unrecognized customer. No order history on file.",
-                            "type": "string"
-                        },
-                        {
-                            "id": "n2",
-                            "name": "priorityFlag",
-                            "value": "={{ false }}",
-                            "type": "boolean"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "b4c9aa00-73e3-454b-8f40-0960fdf4efd9",
-            "name": "Set New Customer Context",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.4,
-            "position": [
-                1712,
-                1728
-            ]
-        },
-        {
-            "parameters": {},
-            "id": "5f32408f-2071-47bb-9778-beee8ba08e4d",
-            "name": "Merge Customer Context Branches",
-            "type": "n8n-nodes-base.merge",
-            "typeVersion": 3,
-            "position": [
-                1920,
-                1648
-            ]
-        },
-        {
-            "parameters": {
-                "mode": "combine",
-                "combineBy": "combineByPosition",
-                "options": {}
-            },
-            "id": "99c52252-06ec-4c5d-ac96-d80263d75ddf",
-            "name": "Merge All Context",
-            "type": "n8n-nodes-base.merge",
-            "typeVersion": 3,
-            "position": [
-                2112,
-                1520
-            ]
-        },
-        {
-            "parameters": {
-                "mode": "retrieve-as-tool",
-                "toolName": "company_knowledge_base",
-                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
+                "mode": "insert",
                 "tableName": "kb_embeddings",
                 "options": {}
             },
-            "id": "d401c794-ceb4-4240-b550-4e9e32dc1108",
-            "name": "Query Knowledge Base",
+            "id": "2033e7dd-9a98-4f2b-90ca-d610a18ea604",
+            "name": "Insert into pgvector KB",
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                2320,
-                1744
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "sessionIdType": "customKey",
-                "sessionKey": "={{ $json.chatId }}"
-            },
-            "id": "cc343b36-d70d-4a85-a8ca-fded8ed756b5",
-            "name": "Conversation Memory",
-            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-            "typeVersion": 1.3,
-            "position": [
-                2320,
-                1520
-            ]
-        },
-        {
-            "parameters": {
-                "promptType": "define",
-                "text": "={{ $json.userMessage }}",
-                "options": {
-                    "systemMessage": "=You are the official WhatsApp assistant for [Company Name]. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status: {{ $json.customerContext }}\n\nInstructions:\n- If this is a returning customer with order history, feel free to reference their orders naturally (e.g. order status) when relevant to their question.\n- Keep replies concise and conversational, suitable for WhatsApp.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n\nIf a customer asks to buy something or place an order, use the 'create_order_intake' tool to record their request. Once the tool returns success, immediately tell the customer that their order is being processed.\n\n- Order Processing Intent: If the customer explicitly states they want to buy a product or place a new order, you must append this exact formatting tag to the absolute end of your response: |||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||. Replace NAME with the exact product title they requested and NUMBER with the integer quantity. Do not include this tag if they are only asking informational questions or checking order status."
-                }
-            },
-            "id": "63298599-2ae5-4e0b-a6b5-827e5cdd04cb",
-            "name": "AI Agent",
-            "type": "@n8n/n8n-nodes-langchain.agent",
-            "typeVersion": 1.7,
-            "position": [
-                2512,
-                1520
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').item.json.sessionId }}/messages/send-text",
-                "authentication": "genericCredentialType",
-                "genericAuthType": "httpHeaderAuth",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ { \"chatId\": $('Extract Message Data').item.json.chatId, \"text\": $json.output } }}",
-                "options": {}
-            },
-            "id": "6fb9e955-e627-46b7-9bd3-ae453f101e83",
-            "name": "Send Reply via OpenWA",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                3008,
-                1344
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "fRdKJONX9P8WAPgZ",
-                    "name": "Header Auth openwa"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  $msg${{ $('Extract Message Data').item.json.chatId }}$msg$,\n  $msg${{ $('Extract Message Data').item.json.from }}$msg$,\n  $msg${{ $('Extract Message Data').item.json.sessionId }}$msg$,\n  $msg${{ $('Extract Message Data').item.json.userMessage }}$msg$,\n  $msg${{ $('Parse Order Intent').item.json.output }}$msg$,\n  now()\n);",
-                "options": {}
-            },
-            "id": "0a3de8c8-cb3b-46fd-aef7-7784dee8e433",
-            "name": "Log Conversation",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                3216,
-                1344
+                -80,
+                3920
             ],
             "credentials": {
                 "postgres": {
@@ -673,47 +898,11 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                1680,
-                960
+                -128,
+                4144
             ],
-            "id": "acffddd2-368a-486e-8cc0-86f7cec9a20e",
+            "id": "1f5981e5-03fc-4ed9-9eea-835eb6024a34",
             "name": "Embeddings Gemini(Ingestion)",
-            "credentials": {
-                "googlePalmApi": {
-                    "id": "MUMZYgHqE8cLz0bk",
-                    "name": "Google Gemini(PaLM) Api account (openwa)"
-                }
-            }
-        },
-        {
-            "parameters": {},
-            "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
-            "typeVersion": 1,
-            "position": [
-                2336,
-                1920
-            ],
-            "id": "43df2801-1759-494d-bc91-5a1d71448a82",
-            "name": "Embeddings Gemini(Query)",
-            "credentials": {
-                "googlePalmApi": {
-                    "id": "MUMZYgHqE8cLz0bk",
-                    "name": "Google Gemini(PaLM) Api account (openwa)"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "options": {}
-            },
-            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-            "typeVersion": 1.1,
-            "position": [
-                2576,
-                1792
-            ],
-            "id": "7ba7f37a-474f-48a9-8960-aff299e95848",
-            "name": "Chat Model",
             "credentials": {
                 "googlePalmApi": {
                     "id": "MUMZYgHqE8cLz0bk",
@@ -728,131 +917,303 @@
             "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
             "typeVersion": 1.1,
             "position": [
-                1840,
-                944
+                32,
+                4128
             ],
-            "id": "06809704-8133-4266-9e5a-c1c627352a37",
+            "id": "afc6fa17-307e-4bc9-b3ad-17fe625361e0",
             "name": "Default Data Loader"
         },
         {
-            "parameters": {
-                "rule": {
-                    "interval": [
-                        {
-                            "field": "hours"
-                        }
-                    ]
-                }
-            },
-            "id": "bbeab596-50d4-4e02-9f0e-997053a3d09e",
-            "name": "Queue Sync Trigger",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
+            "parameters": {},
+            "id": "49227266-c260-439d-a278-b46584c14013",
+            "name": "Merge Ingestion Branches",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
             "position": [
-                784,
-                2176
+                304,
+                4304
             ]
         },
         {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "SELECT id, phone_number, extracted_json FROM order_intake_queue WHERE processed = FALSE LIMIT 50;",
-                "options": {}
-            },
-            "id": "1fbe36dc-0e50-40d7-8d2f-43896a40038e",
-            "name": "Fetch Unprocessed Queue",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
+            "parameters": {},
+            "id": "c9827360-72ba-418c-bec7-58d45ec3b0ff",
+            "name": "KB Ingestion Complete",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
             "position": [
-                1008,
-                2176
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES (\n  $${{ $json.phone_number }}$$,\n  $${{ $json.extracted_json?.order_id || \"ORD-\" + Math.floor(100000 + Math.random() * 900000) }}$$,\n  $${{ $json.extracted_json?.product_name }}$$,\n  {{ $json.extracted_json?.quantity || 1 }},\n  $${{ $json.extracted_json?.order_status || \"Processing\" }}$$,\n  CURRENT_DATE,\n  now()\n)\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  order_status = EXCLUDED.order_status,\n  order_date = EXCLUDED.order_date,\n  updated_at = now();",
-                "options": {}
-            },
-            "id": "a41e9a57-36aa-434d-8f90-2c69013c6081",
-            "name": "Process & Sync to Orders Table",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1232,
-                2176
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "UPDATE order_intake_queue SET processed = TRUE WHERE id = {{ $('Fetch Unprocessed Queue').item.json.id }};",
-                "options": {}
-            },
-            "id": "4c32f240-a297-4d8a-bc95-4db7d2498caa",
-            "name": "Mark Queue Rows as Processed",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1456,
-                2176
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output;\nlet hasOrder = false;\nlet orderData = {};\n\nconst match = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (match) {\n    hasOrder = true;\n    try {\n        orderData = JSON.parse(match[1]);\n    } catch (e) {\n        orderData = { error: \"Failed to parse intent JSON\", raw: match[1] };\n    }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        from: $('Extract Message Data').first().json.from\n    }\n};"
-            },
-            "id": "fd853c91-1dc4-4b34-9b6e-809460a046df",
-            "name": "Parse Order Intent",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                2816,
-                1520
+                544,
+                4320
             ]
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  '+{{ $json.from.replace(\"@c.us\", \"\") }}',\n  '{{ JSON.stringify($json.orderData) }}'::jsonb,\n  FALSE\nWHERE {{ $json.hasOrder }} = TRUE;",
-                "options": {}
-            },
-            "id": "fdfa832c-f5d8-4643-aa70-8e8df0ef866b",
-            "name": "Conditional Staging Insert",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                3008,
-                1520
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
         }
     ],
     "pinData": {},
     "connections": {
+        "Send Reply via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Log Conversation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Order Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Conditional Staging Insert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Send Reply via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Order Intent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Query Knowledge Base": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Conversation Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embeddings Gemini(Query)": {
+            "ai_embedding": [
+                [
+                    {
+                        "node": "Query Knowledge Base",
+                        "type": "ai_embedding",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge All Context": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge Customer Context Branches": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Context",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Set Returning Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Customer Context Branches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set New Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Customer Context Branches",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Route by Customer Type": {
+            "main": [
+                [
+                    {
+                        "node": "Set Returning Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Set New Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Conversation History": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Customer Context": {
+            "main": [
+                [
+                    {
+                        "node": "Route by Customer Type",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Conversation History": {
+            "main": [
+                [
+                    {
+                        "node": "Format Conversation History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Customer Orders": {
+            "main": [
+                [
+                    {
+                        "node": "Build Customer Context",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Message Data": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Conversation History",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Lookup Customer Orders",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Incoming Event": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Message Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Ignore Non-Text Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenWA Incoming Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Route Incoming Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Queue Sync Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Unprocessed Queue",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Unprocessed Queue": {
+            "main": [
+                [
+                    {
+                        "node": "Process & Sync to Orders Table",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process & Sync to Orders Table": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Queue Rows as Processed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
         "KB Ingestion Schedule": {
             "main": [
                 [
@@ -904,44 +1265,22 @@
                 ]
             ]
         },
-        "Parse CSV Rows (Embed)": {
-            "main": [
-                [
-                    {
-                        "node": "Format Rows as Chunks",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Format Rows as Chunks": {
-            "main": [
-                [
-                    {
-                        "node": "Insert into pgvector KB",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Insert into pgvector KB": {
-            "main": [
-                [
-                    {
-                        "node": "Merge Ingestion Branches",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Read Order Data CSV": {
             "main": [
                 [
                     {
                         "node": "Parse Order CSV Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse CSV Rows (Embed)": {
+            "main": [
+                [
+                    {
+                        "node": "Format Rows as Chunks",
                         "type": "main",
                         "index": 0
                     }
@@ -959,6 +1298,17 @@
                 ]
             ]
         },
+        "Format Rows as Chunks": {
+            "main": [
+                [
+                    {
+                        "node": "Insert into pgvector KB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
         "Upsert Orders Table": {
             "main": [
                 [
@@ -970,206 +1320,11 @@
                 ]
             ]
         },
-        "Merge Ingestion Branches": {
+        "Insert into pgvector KB": {
             "main": [
                 [
                     {
-                        "node": "KB Ingestion Complete",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "OpenWA Incoming Webhook": {
-            "main": [
-                [
-                    {
-                        "node": "Route Incoming Event",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Route Incoming Event": {
-            "main": [
-                [
-                    {
-                        "node": "Extract Message Data",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Ignore Non-Text Event",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Extract Message Data": {
-            "main": [
-                [
-                    {
-                        "node": "Fetch Conversation History",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Lookup Customer Orders",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Fetch Conversation History": {
-            "main": [
-                [
-                    {
-                        "node": "Format Conversation History",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Lookup Customer Orders": {
-            "main": [
-                [
-                    {
-                        "node": "Build Customer Context",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Build Customer Context": {
-            "main": [
-                [
-                    {
-                        "node": "Route by Customer Type",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Route by Customer Type": {
-            "main": [
-                [
-                    {
-                        "node": "Set Returning Customer Context",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Set New Customer Context",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Set Returning Customer Context": {
-            "main": [
-                [
-                    {
-                        "node": "Merge Customer Context Branches",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Set New Customer Context": {
-            "main": [
-                [
-                    {
-                        "node": "Merge Customer Context Branches",
-                        "type": "main",
-                        "index": 1
-                    }
-                ]
-            ]
-        },
-        "Format Conversation History": {
-            "main": [
-                [
-                    {
-                        "node": "Merge All Context",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Merge Customer Context Branches": {
-            "main": [
-                [
-                    {
-                        "node": "Merge All Context",
-                        "type": "main",
-                        "index": 1
-                    }
-                ]
-            ]
-        },
-        "Merge All Context": {
-            "main": [
-                [
-                    {
-                        "node": "AI Agent",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Conversation Memory": {
-            "ai_memory": [
-                [
-                    {
-                        "node": "AI Agent",
-                        "type": "ai_memory",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Query Knowledge Base": {
-            "ai_tool": [
-                [
-                    {
-                        "node": "AI Agent",
-                        "type": "ai_tool",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "AI Agent": {
-            "main": [
-                [
-                    {
-                        "node": "Parse Order Intent",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Send Reply via OpenWA": {
-            "main": [
-                [
-                    {
-                        "node": "Log Conversation",
+                        "node": "Merge Ingestion Branches",
                         "type": "main",
                         "index": 0
                     }
@@ -1187,28 +1342,6 @@
                 ]
             ]
         },
-        "Embeddings Gemini(Query)": {
-            "ai_embedding": [
-                [
-                    {
-                        "node": "Query Knowledge Base",
-                        "type": "ai_embedding",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Chat Model": {
-            "ai_languageModel": [
-                [
-                    {
-                        "node": "AI Agent",
-                        "type": "ai_languageModel",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Default Data Loader": {
             "ai_document": [
                 [
@@ -1220,58 +1353,15 @@
                 ]
             ]
         },
-        "Queue Sync Trigger": {
+        "Merge Ingestion Branches": {
             "main": [
                 [
                     {
-                        "node": "Fetch Unprocessed Queue",
+                        "node": "KB Ingestion Complete",
                         "type": "main",
                         "index": 0
                     }
                 ]
-            ]
-        },
-        "Fetch Unprocessed Queue": {
-            "main": [
-                [
-                    {
-                        "node": "Process & Sync to Orders Table",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Process & Sync to Orders Table": {
-            "main": [
-                [
-                    {
-                        "node": "Mark Queue Rows as Processed",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Parse Order Intent": {
-            "main": [
-                [
-                    {
-                        "node": "Conditional Staging Insert",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Send Reply via OpenWA",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Conditional Staging Insert": {
-            "main": [
-                []
             ]
         }
     },
@@ -1280,7 +1370,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "9cf8a657-c19d-48b1-9084-1f7e6d6964a7",
+    "versionId": "8ed0b7e5-db6e-4b8a-b1b2-fea005952c33",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
