@@ -59,7 +59,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output;\n\nlet hasOrder = false;\nlet orderData = {};\n\nlet hasRegister = false;\nlet registerData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try {\n        orderData = JSON.parse(orderMatch[1]);\n    } catch (e) {\n        orderData = { error: \"Failed to parse order JSON\", raw: orderMatch[1] };\n    }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try {\n        registerData = JSON.parse(registerMatch[1]);\n    } catch (e) {\n        registerData = { error: \"Failed to parse register JSON\", raw: registerMatch[1] };\n    }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        from: $('Extract Message Data').first().json.from\n    }\n};"
+                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
             },
             "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
             "name": "Parse Order Intent",
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=You are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details."
+                    "systemMessage": "=You are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON)."
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -1057,6 +1057,215 @@
             "typeVersion": 1,
             "id": "caa4b65c-6e0b-47c7-85f8-853daca3466a",
             "name": "Sticky Note3"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "cddbb5fa-4039-409b-8267-136dc8ce8f7a",
+                            "leftValue": "={{ $json.hasQuote }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                864,
+                5088
+            ],
+            "id": "8562245b-ae33-43e4-b973-997020cbf508",
+            "name": "If"
+        },
+        {
+            "parameters": {
+                "operation": "copy",
+                "fileId": {
+                    "__rl": true,
+                    "value": "14_6gCj-pfv8IWXyVYBRU2TweX1t46hMxFdoH-GgvC1s",
+                    "mode": "id"
+                },
+                "name": "=Aim_Green_Quote_{{ $json.quoteData.company_name }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 3,
+            "position": [
+                1104,
+                5072
+            ],
+            "id": "f8d0c12c-b0b7-40de-b3f7-fef9c36e6c90",
+            "name": "Duplicate Template (Google Drive)",
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "LKHZ1aW6otsuSJS4",
+                    "name": "Google Drive account 2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "documentURL": "={{ $json.id }}",
+                "actionsUi": {
+                    "actionFields": [
+                        {
+                            "action": "replaceAll",
+                            "text": "{{company_name}}",
+                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.company_name }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{product_name}}",
+                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.product_name }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{quantity}}",
+                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.quantity) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{unit_price}}",
+                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.unit_price) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{total_price}}",
+                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.total_price) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{date}}",
+                            "replaceText": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}"
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.googleDocs",
+            "typeVersion": 2,
+            "position": [
+                1296,
+                5072
+            ],
+            "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
+            "name": "Update a document",
+            "credentials": {
+                "googleDocsOAuth2Api": {
+                    "id": "UmMv8ac5qlJl0BE9",
+                    "name": "Google Docs account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "download",
+                "fileId": {
+                    "__rl": true,
+                    "value": "={{ $json.documentId }}",
+                    "mode": "id"
+                },
+                "options": {
+                    "googleFileConversion": {
+                        "conversion": {
+                            "docsToFormat": "application/pdf"
+                        }
+                    }
+                }
+            },
+            "id": "e9f199a9-3a90-4388-91ef-72f34cfd97b6",
+            "name": "Download as PDF",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 3,
+            "position": [
+                1488,
+                5072
+            ],
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "LKHZ1aW6otsuSJS4",
+                    "name": "Google Drive account 2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Parse Order Intent').first().json.sessionId }}/messages/send-document",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"chatId\": \"{{ $('Parse Order Intent').first().json.from }}@c.us\",\n  \"base64\": \"{{ $json.pdf_base64 }}\",\n  \"mimetype\": \"application/pdf\",\n  \"filename\": \"Aim_Green_Quote.pdf\",\n  \"caption\": \"Here is your formal quote. Let me know if you need any adjustments!\"\n}",
+                "options": {}
+            },
+            "id": "b624f8b6-63eb-4161-a6f5-d675ab7a4907",
+            "name": "Send PDF via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1872,
+                5072
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Quote Generation",
+                "height": 256,
+                "width": 1296,
+                "color": 4
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                800,
+                5008
+            ],
+            "typeVersion": 1,
+            "id": "78ad23e0-9c70-4b88-9602-25424a689805",
+            "name": "Sticky Note4"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].binary && items[i].binary.data) {\n    // Read the PDF from n8n's filesystem memory\n    const buffer = await this.helpers.getBinaryDataBuffer(i, 'data');\n    // Convert to base64 and attach to JSON\n    items[i].json.pdf_base64 = buffer.toString('base64');\n  }\n}\n\nreturn items;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1680,
+                5072
+            ],
+            "id": "79beb6e4-1195-4c06-8054-d9f3f27a4780",
+            "name": "Code in JavaScript"
         }
     ],
     "pinData": {},
@@ -1087,6 +1296,11 @@
                     },
                     {
                         "node": "Conditional Client Upsert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If",
                         "type": "main",
                         "index": 0
                     }
@@ -1525,6 +1739,61 @@
                     }
                 ]
             ]
+        },
+        "If": {
+            "main": [
+                [
+                    {
+                        "node": "Duplicate Template (Google Drive)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Duplicate Template (Google Drive)": {
+            "main": [
+                [
+                    {
+                        "node": "Update a document",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update a document": {
+            "main": [
+                [
+                    {
+                        "node": "Download as PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download as PDF": {
+            "main": [
+                [
+                    {
+                        "node": "Code in JavaScript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Code in JavaScript": {
+            "main": [
+                [
+                    {
+                        "node": "Send PDF via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -1532,7 +1801,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "93f85852-035d-4621-8484-253a6ae923b4",
+    "versionId": "ba63d382-b659-422b-9620-dd4c9ef76379",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
