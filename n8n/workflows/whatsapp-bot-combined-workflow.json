@@ -26,8 +26,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1056,
-                4528
+                -64,
+                4848
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -47,8 +47,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1056,
-                4704
+                -64,
+                5024
             ],
             "credentials": {
                 "postgres": {
@@ -66,8 +66,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                864,
-                4704
+                -256,
+                5024
             ]
         },
         {
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=You are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details."
+                    "systemMessage": "=You are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details."
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -83,8 +83,8 @@
             "type": "@n8n/n8n-nodes-langchain.agent",
             "typeVersion": 1.7,
             "position": [
-                560,
-                4704
+                -560,
+                5024
             ]
         },
         {
@@ -100,8 +100,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                752,
-                4896
+                -368,
+                5216
             ],
             "credentials": {
                 "postgres": {
@@ -118,8 +118,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1.1,
             "position": [
-                496,
-                4896
+                -624,
+                5216
             ],
             "id": "123b9679-e477-4036-9996-42f72e751176",
             "name": "Chat Model",
@@ -135,8 +135,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                752,
-                5072
+                -368,
+                5392
             ],
             "id": "3f9f3677-a4db-4f21-a8d6-4232871bdd8b",
             "name": "Embeddings Gemini(Query)",
@@ -158,8 +158,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                304,
-                4704
+                -816,
+                5024
             ]
         },
         {
@@ -169,8 +169,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                112,
-                4832
+                -1008,
+                5152
             ]
         },
         {
@@ -198,8 +198,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -96,
-                4720
+                -1216,
+                5040
             ]
         },
         {
@@ -227,8 +227,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -96,
-                4912
+                -1216,
+                5232
             ]
         },
         {
@@ -288,8 +288,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -288,
-                4832
+                -1408,
+                5152
             ]
         },
         {
@@ -301,8 +301,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -496,
-                4576
+                -1616,
+                4896
             ]
         },
         {
@@ -314,8 +314,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -496,
-                4832
+                -1616,
+                5152
             ]
         },
         {
@@ -329,8 +329,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -688,
-                4576
+                -1808,
+                4896
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -351,8 +351,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -688,
-                4832
+                -1808,
+                5152
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -399,8 +399,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -912,
-                4672
+                -2032,
+                4992
             ]
         },
         {
@@ -410,8 +410,8 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -912,
-                4880
+                -2032,
+                5200
             ]
         },
         {
@@ -460,8 +460,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -1136,
-                4752
+                -2256,
+                5072
             ]
         },
         {
@@ -475,8 +475,8 @@
             "type": "n8n-nodes-base.webhook",
             "typeVersion": 2,
             "position": [
-                -1360,
-                4752
+                -2480,
+                5072
             ],
             "webhookId": "openwa-webhook"
         },
@@ -495,8 +495,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                -1360,
-                5168
+                912,
+                4256
             ]
         },
         {
@@ -510,8 +510,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1136,
-                5168
+                1136,
+                4256
             ],
             "credentials": {
                 "postgres": {
@@ -531,8 +531,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -912,
-                5168
+                1360,
+                4256
             ],
             "credentials": {
                 "postgres": {
@@ -552,8 +552,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -688,
-                5168
+                1584,
+                4256
             ],
             "credentials": {
                 "postgres": {
@@ -581,8 +581,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                -1344,
-                4160
+                -2480,
+                4432
             ]
         },
         {
@@ -594,8 +594,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1120,
-                4160
+                -2256,
+                4432
             ]
         },
         {
@@ -655,8 +655,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -896,
-                4160
+                -2032,
+                4432
             ]
         },
         {
@@ -669,8 +669,8 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -672,
-                4032
+                -1808,
+                4304
             ]
         },
         {
@@ -683,8 +683,8 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -672,
-                4304
+                -1808,
+                4576
             ]
         },
         {
@@ -696,8 +696,8 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -496,
-                4032
+                -1632,
+                4304
             ]
         },
         {
@@ -709,8 +709,8 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -496,
-                4320
+                -1632,
+                4592
             ]
         },
         {
@@ -722,8 +722,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -272,
-                4032
+                -1408,
+                4304
             ]
         },
         {
@@ -737,8 +737,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -272,
-                4320
+                -1408,
+                4592
             ],
             "credentials": {
                 "postgres": {
@@ -758,8 +758,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                -64,
-                3920
+                -1200,
+                4192
             ],
             "credentials": {
                 "postgres": {
@@ -773,8 +773,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                -96,
-                4128
+                -1232,
+                4400
             ],
             "id": "1f5981e5-03fc-4ed9-9eea-835eb6024a34",
             "name": "Embeddings Gemini(Ingestion)",
@@ -792,8 +792,8 @@
             "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
             "typeVersion": 1.1,
             "position": [
-                80,
-                4144
+                -1056,
+                4416
             ],
             "id": "afc6fa17-307e-4bc9-b3ad-17fe625361e0",
             "name": "Default Data Loader"
@@ -805,8 +805,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                320,
-                4304
+                -816,
+                4576
             ]
         },
         {
@@ -816,8 +816,8 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                608,
-                4304
+                -528,
+                4576
             ]
         },
         {
@@ -829,8 +829,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                1264,
-                4528
+                144,
+                4848
             ],
             "id": "22395edb-e4ab-408b-b109-5e24c0673677",
             "name": "Log Conversation1",
@@ -850,8 +850,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                1072,
-                4928
+                -48,
+                5248
             ],
             "id": "b0206eca-dbaf-4fd8-8003-d6d4d340fdd2",
             "name": "Conditional Client Upsert",
@@ -861,6 +861,202 @@
                     "name": "Postgres account"
                 }
             }
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "8b0f00e6-ac13-4401-8a43-9d6e6532351d",
+            "name": "Hourly Proactive Sweep",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                848,
+                4592
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT DISTINCT ON (c.from_number) \n  c.from_number, \n  c.session_id, \n  cli.full_name, \n  cli.company_name\nFROM conversations c\nLEFT JOIN client cli ON c.from_number = cli.phone_number\nWHERE c.created_at::timestamp >= NOW() - INTERVAL '48 hours'\n  AND c.created_at::timestamp <= NOW() - INTERVAL '24 hours'\n  AND c.follow_up_sent = FALSE\n  AND (\n      c.user_message ILIKE '%price%' OR \n      c.user_message ILIKE '%cost%' OR \n      c.user_message ILIKE '%moq%' OR \n      c.user_message ILIKE '%wholesale%' OR \n      c.bot_reply ILIKE '%moq%'\n  )\n  AND c.from_number NOT IN (\n      SELECT phone_number FROM orders WHERE order_date::date >= CURRENT_DATE - 2\n  )\nORDER BY c.from_number, c.created_at::timestamp DESC;",
+                "options": {}
+            },
+            "id": "90248847-350c-4f8b-81c1-6a421f1f604d",
+            "name": "Fetch Abandoned Quotes",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1088,
+                4592
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Write a follow-up for {{ $json.full_name || 'this client' }} from {{ $json.company_name || 'their company' }}.",
+                "options": {
+                    "systemMessage": "You are a senior sales director for Aim Green. The prospect asked about pricing yesterday but went silent. Write a 2-sentence WhatsApp follow-up. Do not be pushy. Offer a specific value add, such as a formal freight estimate or a physical sample. Keep it highly professional and B2B focused. Output only the message text, no quotes or meta-text."
+                }
+            },
+            "id": "3fec09e6-0d1d-40c1-bf46-1f7dc0e498d0",
+            "name": "Proactive Copywriter",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                1328,
+                4592
+            ]
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-3.1-flash-lite",
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                1280,
+                4800
+            ],
+            "id": "8352f30c-ad8f-4e74-830b-cc38e66106bf",
+            "name": "Gemini Flash (Copywriter)",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Fetch Abandoned Quotes').item.json.session_id || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Fetch Abandoned Quotes').item.json.from_number + \"@c.us\",\n  \"text\": $json.output\n} }}",
+                "options": {}
+            },
+            "id": "3c0953a4-3730-48e0-89a0-80bb8a4eff84",
+            "name": "Send Proactive Reply",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1648,
+                4592
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE conversations \nSET follow_up_sent = TRUE \nWHERE from_number = '{{ $('Fetch Abandoned Quotes').item.json.from_number }}' \n  AND created_at >= NOW() - INTERVAL '48 hours';",
+                "options": {}
+            },
+            "id": "3f0ccd02-6bff-4f90-b9d2-67a8c92238c4",
+            "name": "Mark as Sent",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1888,
+                4592
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# KB Ingestion",
+                "height": 592,
+                "width": 2192
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                -2528,
+                4160
+            ],
+            "typeVersion": 1,
+            "id": "243eede3-ff16-47e5-a02f-861fbbf38a2c",
+            "name": "Sticky Note"
+        },
+        {
+            "parameters": {
+                "content": "# OpenWA Conversation",
+                "height": 736,
+                "width": 2848,
+                "color": 6
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                -2528,
+                4800
+            ],
+            "typeVersion": 1,
+            "id": "370efe0f-40f0-426e-b952-652010fa99d9",
+            "name": "Sticky Note1"
+        },
+        {
+            "parameters": {
+                "content": "# Orders Handling",
+                "height": 272,
+                "width": 992,
+                "color": 5
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                800,
+                4192
+            ],
+            "typeVersion": 1,
+            "id": "78bfa8ff-7301-4ff5-b27a-3abeb2205b84",
+            "name": "Sticky Note2"
+        },
+        {
+            "parameters": {
+                "content": "# Abandoned Quotes Handling",
+                "height": 432,
+                "width": 1264,
+                "color": 4
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                800,
+                4512
+            ],
+            "typeVersion": 1,
+            "id": "caa4b65c-6e0b-47c7-85f8-853daca3466a",
+            "name": "Sticky Note3"
         }
     ],
     "pinData": {},
@@ -1274,6 +1470,61 @@
                     }
                 ]
             ]
+        },
+        "Hourly Proactive Sweep": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Abandoned Quotes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Abandoned Quotes": {
+            "main": [
+                [
+                    {
+                        "node": "Proactive Copywriter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Flash (Copywriter)": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "Proactive Copywriter",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Proactive Copywriter": {
+            "main": [
+                [
+                    {
+                        "node": "Send Proactive Reply",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Proactive Reply": {
+            "main": [
+                [
+                    {
+                        "node": "Mark as Sent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -1281,7 +1532,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "feae6ab9-fbd7-4ff8-8d7f-20d8789f6206",
+    "versionId": "93f85852-035d-4621-8484-253a6ae923b4",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
