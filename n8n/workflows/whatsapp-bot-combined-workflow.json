@@ -26,7 +26,7 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                -96,
+                144,
                 5216
             ],
             "credentials": {
@@ -47,8 +47,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -96,
-                5392
+                272,
+                5648
             ],
             "credentials": {
                 "postgres": {
@@ -59,7 +59,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 4. Check for Meeting Intent (Stage 1)\nif (text.includes('\"hasMeetingIntent\"')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\{[^{}]*\"hasMeetingIntent\"[^{}]*\\}/g, '').trim();\n}\n\n// 5. Check for Booking Confirmation (Stage 2)\nif (text.includes('\"hasBookingConfirmation\"')) {\n    hasBookingConfirmation = true;\n    const meetingDataMatch = text.match(/\"meetingData\"\\s*:\\s*(\\{[^{}]*\\})/);\n    if (meetingDataMatch) {\n        try { meetingData = JSON.parse(meetingDataMatch[1]); } catch (e) { }\n    }\n    text = text.replace(/\\{[^{}]*\"hasBookingConfirmation\"[\\s\\S]*?\\{[^{}]*\\}[\\s\\S]*?\\}/g, '').trim();\n}\n\n// 6. Check for Cancellations\nlet hasCancellation = false; let targetClientName = \"\";\nif (text.includes('\"hasCancellation\"')) {\n    hasCancellation = true;\n    const nameMatch = text.match(/\"targetClientName\"\\s*:\\s*\"([^\"]+)\"/);\n    if (nameMatch) targetClientName = nameMatch[1];\n    text = text.replace(/\\{[^{}]*\"hasCancellation\"[^{}]*\\}/g, '').trim();\n}\n\n// 7. Check for Rescheduling\nlet hasReschedule = false; let rescheduleData = {};\nif (text.includes('\"hasReschedule\"')) {\n    hasReschedule = true;\n    const reschedMatch = text.match(/\\{[^{}]*\"hasReschedule\"[\\s\\S]*?\\}/);\n    if (reschedMatch) {\n        try { rescheduleData = JSON.parse(reschedMatch[0]); } catch (e) { }\n    }\n    text = text.replace(/\\{[^{}]*\"hasReschedule\"[\\s\\S]*?\\}/g, '').trim();\n}\n\n// Final cleanup\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
+                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\nlet hasCancellation = false; let targetClientName = \"\";\nlet hasReschedule = false; let rescheduleData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 4. Check for Meeting Intent (Stage 1)\nif (text.includes('|||MEETING_INTENT|||')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\|\\|\\|MEETING_INTENT\\|\\|\\|/g, '').trim();\n}\n\n// 5. Check for Booking Confirmation (Stage 2)\nconst bookingMatch = text.match(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/);\nif (bookingMatch) {\n    hasBookingConfirmation = true;\n    try { meetingData = JSON.parse(bookingMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 6. Check for Cancellations (Stage 3)\nconst cancelMatch = text.match(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/);\nif (cancelMatch) {\n    hasCancellation = true;\n    try { targetClientName = JSON.parse(cancelMatch[1]).targetClientName; } catch (e) { }\n    text = text.replace(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 7. Check for Rescheduling (Stage 3)\nconst reschedMatch = text.match(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/);\nif (reschedMatch) {\n    hasReschedule = true;\n    try { rescheduleData = JSON.parse(reschedMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// Final cleanup (Removes any accidental markdown blocks left by the AI)\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
             },
             "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
             "name": "Parse Order Intent",
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou are also responsible for managing client consultations and meetings. You must handle scheduling in two distinct stages:\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf the client asks for a meeting, a call, or a consultation, DO NOT guess your availability or propose specific times.\n- Set the JSON flag \"hasMeetingIntent\" to true.\n- Set your text output to exactly: \"I would be happy to schedule a meeting. Let me quickly check my calendar for available times...\"\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client replies and agrees to a specific time slot (after you have proposed times to them), you must officially book it.\n- Set the JSON flag \"hasBookingConfirmation\" to true.\n- Populate the \"meetingData\" JSON block with the following keys:\n  1. \"clientName\": The name of the person or company booking the call.\n  2. \"startTime\": The exact agreed-upon date and time formatted strictly in ISO 8601 format (e.g., 2026-08-05T10:00:00+06:00).\n  3. \"endTime\": The end date and time in strict ISO 8601 format (default to 30 minutes after the start time if the client did not specify a duration).\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Set the JSON flag \"hasCancellation\" to true.\n- Set \"targetClientName\" to their name/company.\n- Reply conversationally confirming the cancellation.\n\nIf the client asks to reschedule to a new time:\n- HARD FRIDAY CHECK: If the requested new time falls on a Friday (e.g., if today is Thursday and they ask for \"tomorrow\"), DO NOT output any JSON. Instead, politely inform the client that Fridays are closed, and ask for an alternative day.\n- IF NOT FRIDAY: Set the JSON flag \"hasReschedule\" to true.\n- Set \"targetClientName\" to their name/company.\n- Set \"newStartTime\" and \"newEndTime\" in strict ISO 8601 format (using the current year).\n- Reply confirming the new time."
+                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -112,7 +112,7 @@
         },
         {
             "parameters": {
-                "modelName": "models/gemini-3.1-flash-lite",
+                "modelName": "models/gemini-3.6-flash",
                 "options": {}
             },
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
@@ -829,7 +829,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                112,
+                352,
                 5216
             ],
             "id": "22395edb-e4ab-408b-b109-5e24c0673677",
@@ -850,8 +850,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                -80,
-                5616
+                144,
+                5456
             ],
             "id": "b0206eca-dbaf-4fd8-8003-d6d4d340fdd2",
             "name": "Conditional Client Upsert",
@@ -1243,7 +1243,7 @@
                 "content": "# Quote Generation",
                 "height": 416,
                 "width": 1296,
-                "color": 4
+                "color": "#6E61CC"
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
@@ -1295,8 +1295,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -80,
-                5824
+                -48,
+                5776
             ],
             "id": "1de25aa0-1456-4dab-95a5-8865f86768df",
             "name": "If Order Intent"
@@ -1320,8 +1320,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                144,
-                5824
+                272,
+                5840
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1454,7 +1454,7 @@
                     "values": [
                         {
                             "name": "system_prompt",
-                            "stringValue": "={{`You are a helpful B2B booking assistant.\nToday's Date: ${$now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy')}\n\nThe client wants to schedule a meeting. Here is our currently busy schedule for the next 7 days:\n\n${$json.busySchedule}\n\nPlease review these busy times and propose two specific open time slots to the client in a friendly, conversational tone. \n\nCRITICAL RULES:\n1. NEVER propose a time slot that falls on a Friday. Friday is the weekend in Bangladesh.\n2. Ensure all dates reflect the current year (${$now.setZone('Asia/Dhaka').toFormat('yyyy')}). \n3. Do not use any hidden tags. Just write the exact message to send to the client.`}}"
+                            "stringValue": "={{ `You are a helpful B2B booking assistant.\nToday's Date: ${$now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy')}\n\nThe client wants to schedule a meeting. Here is our currently busy schedule for the next 7 days:\n\n${$json.busySchedule}\n\nPlease review these busy times and propose two specific open time slots to the client in a friendly tone.\n\nCRITICAL RULES:\n1. OPERATING HOURS: Only propose slots between 10:00 AM and 6:00 PM (Asia/Dhaka time).\n2. BUFFER TIME: Always ensure at least a 15-minute buffer before and after existing busy slots.\n3. WEEKENDS: NEVER propose time slots on Friday. Friday is the weekend in Bangladesh.\n4. YEAR: Ensure all dates reflect the current year (${$now.setZone('Asia/Dhaka').toFormat('yyyy')}).\n5. OUTPUT: Do not use any hidden tags or markdown code blocks. Just write the exact conversational message to send to the client.` }}"
                         }
                     ]
                 },
@@ -1556,7 +1556,7 @@
             "typeVersion": 1.2,
             "position": [
                 2320,
-                5248
+                5216
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1575,7 +1575,16 @@
                 "start": "={{ $('Parse Order Intent').first().json.meetingData.startTime }}",
                 "end": "={{ $('Parse Order Intent').first().json.meetingData.endTime }}",
                 "additionalFields": {
+                    "attendees": [
+                        "={{ $('Parse Order Intent').first().json.meetingData.clientEmail || $('Build Customer Context').first().json.clientInfo.clientEmail }}"
+                    ],
+                    "conferenceDataUi": {
+                        "conferenceDataValues": {
+                            "conferenceSolution": "hangoutsMeet"
+                        }
+                    },
                     "description": "Automated reminder to follow up on the Aim Green client consultation.",
+                    "sendUpdates": "all",
                     "summary": "=Follow-up with {{ $('Parse Order Intent').first().json.meetingData.clientName }} regarding Quote"
                 }
             },
@@ -1778,6 +1787,286 @@
                     "name": "Google Calendar account"
                 }
             }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Parse Order Intent').first().json.sessionId }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "chatId",
+                            "value": "={{$('Parse Order Intent').first().json.from + \"@c.us\"}}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ `Your consultation is officially booked!\n\n📅 Date & Time: ${$json.start?.dateTime || $json.start?.date}\n🔗 Google Meet Link: ${$json.hangoutLink || 'Sent to your email'}\n\nA formal calendar invite has also been sent to your inbox.` }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                336,
+                4864
+            ],
+            "id": "c1bf1a46-554d-46b4-a723-c1cb8f4fe830",
+            "name": "Send Confirmation & Link via OpenWA",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 15
+                        }
+                    ]
+                }
+            },
+            "id": "d07fc978-406c-47d7-b5d6-0b647d3642a8",
+            "name": "Every 15 Minutes",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1488,
+                5584
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "calendar": {
+                    "__rl": true,
+                    "value": "primary",
+                    "mode": "list",
+                    "cachedResultName": "Primary Calendar"
+                },
+                "returnAll": true,
+                "options": {
+                    "timeMin": "={{ $now.plus({ hours: 2 }).toUTC().toISO() }}",
+                    "timeMax": "={{ $now.plus({ hours: 2, minutes: 15 }).toUTC().toISO() }}",
+                    "singleEvents": true
+                }
+            },
+            "id": "53a5d6f8-7a65-4c60-a187-98be8031f774",
+            "name": "Check Upcoming Meetings (Next 2h)",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                1712,
+                5584
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-attendee-email",
+                            "leftValue": "={{ $json.attendees?.[0]?.email }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "notEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "3f78ab2b-8b2a-4754-8727-97a29601ecd2",
+            "name": "If Attendee Has Email",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                1936,
+                5584
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT c.phone_number, c.full_name, conv.session_id \nFROM client c \nLEFT JOIN conversations conv ON c.phone_number = conv.from_number \nWHERE c.email = '{{ $('If Attendee Has Email').item.json.attendees[0].email }}' \nORDER BY conv.created_at DESC \nLIMIT 1;",
+                "options": {}
+            },
+            "id": "b4c73cca-a2d1-437b-9641-3b2a8f0e2488",
+            "name": "Lookup Client WhatsApp",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2144,
+                5552
+            ],
+            "alwaysOutputData": false,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $json.session_id || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $json.phone_number + \"@c.us\", \"text\": `Hi ${$json.full_name || $('If Attendee Has Email').item.json.attendees?.[0]?.displayName || 'there'}, just a quick reminder that our consultation call is starting in 2 hours!\\n\\n🔗 Here is your Google Meet link: ${$('If Attendee Has Email').item.json.hangoutLink || 'Check your calendar invite'}` } }}",
+                "options": {}
+            },
+            "id": "8aaadb33-2645-4c49-97c2-c3d62f28356e",
+            "name": "Send WhatsApp Reminder",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2368,
+                5552
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Meeting reminder via whatsapp",
+                "height": 304,
+                "width": 1136,
+                "color": "#0BEA60"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                1440,
+                5456
+            ],
+            "typeVersion": 1,
+            "id": "0865d973-ceb2-421c-b039-e73845f6064a",
+            "name": "Sticky Note5"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "e2e55d7c-e909-4b0d-b05d-336fc500730c",
+                            "leftValue": "={{ $json.hasMeetingIntent }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "false",
+                                "singleValue": true
+                            }
+                        },
+                        {
+                            "id": "c0b5a0d5-4ff2-4093-ab2d-9feaeb4a66ff",
+                            "leftValue": "={{ $json.hasBookingConfirmation }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "false",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -96,
+                5232
+            ],
+            "id": "a30b884c-d6de-44ec-848d-e0892b834629",
+            "name": "Filter Main Reply"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "cb6937a6-625a-446c-8d0c-615c899cf958",
+                            "leftValue": "={{ $json.hasRegister }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -96,
+                5456
+            ],
+            "id": "1286a2d4-a835-4c92-ad12-6a17454af860",
+            "name": "If Register Intent"
         }
     ],
     "pinData": {},
@@ -1796,21 +2085,6 @@
         "Parse Order Intent": {
             "main": [
                 [
-                    {
-                        "node": "Conditional Staging Insert",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Send Reply via OpenWA",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Conditional Client Upsert",
-                        "type": "main",
-                        "index": 0
-                    },
                     {
                         "node": "If",
                         "type": "main",
@@ -1833,6 +2107,16 @@
                     },
                     {
                         "node": "Route Cancel/Reschedule",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Filter Main Reply",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Register Intent",
                         "type": "main",
                         "index": 0
                     }
@@ -2339,6 +2623,11 @@
                         "node": "Log Fulfillment Deadline",
                         "type": "main",
                         "index": 0
+                    },
+                    {
+                        "node": "Conditional Staging Insert",
+                        "type": "main",
+                        "index": 0
                     }
                 ]
             ]
@@ -2448,6 +2737,83 @@
                     }
                 ]
             ]
+        },
+        "Schedule Client Consultation": {
+            "main": [
+                [
+                    {
+                        "node": "Send Confirmation & Link via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Every 15 Minutes": {
+            "main": [
+                [
+                    {
+                        "node": "Check Upcoming Meetings (Next 2h)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Upcoming Meetings (Next 2h)": {
+            "main": [
+                [
+                    {
+                        "node": "If Attendee Has Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Attendee Has Email": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Client WhatsApp",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Client WhatsApp": {
+            "main": [
+                [
+                    {
+                        "node": "Send WhatsApp Reminder",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter Main Reply": {
+            "main": [
+                [
+                    {
+                        "node": "Send Reply via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Register Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Conditional Client Upsert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -2455,7 +2821,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "61086b00-d433-4b15-b705-4bf76b834b96",
+    "versionId": "952776b7-cab0-4cca-bc7f-2ee286f59f71",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
