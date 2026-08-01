@@ -26,8 +26,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                -64,
-                4848
+                -96,
+                5216
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -47,8 +47,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -64,
-                5024
+                -96,
+                5392
             ],
             "credentials": {
                 "postgres": {
@@ -59,15 +59,15 @@
         },
         {
             "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
+                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/, '').trim();\n}\n\n// 4. Check for Meeting Intent (Stage 1)\nif (text.includes('\"hasMeetingIntent\"')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\{[^{}]*\"hasMeetingIntent\"[^{}]*\\}/g, '').trim();\n}\n\n// 5. Check for Booking Confirmation (Stage 2)\nif (text.includes('\"hasBookingConfirmation\"')) {\n    hasBookingConfirmation = true;\n    const meetingDataMatch = text.match(/\"meetingData\"\\s*:\\s*(\\{[^{}]*\\})/);\n    if (meetingDataMatch) {\n        try { meetingData = JSON.parse(meetingDataMatch[1]); } catch (e) { }\n    }\n    text = text.replace(/\\{[^{}]*\"hasBookingConfirmation\"[\\s\\S]*?\\{[^{}]*\\}[\\s\\S]*?\\}/g, '').trim();\n}\n\n// 6. Check for Cancellations\nlet hasCancellation = false; let targetClientName = \"\";\nif (text.includes('\"hasCancellation\"')) {\n    hasCancellation = true;\n    const nameMatch = text.match(/\"targetClientName\"\\s*:\\s*\"([^\"]+)\"/);\n    if (nameMatch) targetClientName = nameMatch[1];\n    text = text.replace(/\\{[^{}]*\"hasCancellation\"[^{}]*\\}/g, '').trim();\n}\n\n// 7. Check for Rescheduling\nlet hasReschedule = false; let rescheduleData = {};\nif (text.includes('\"hasReschedule\"')) {\n    hasReschedule = true;\n    const reschedMatch = text.match(/\\{[^{}]*\"hasReschedule\"[\\s\\S]*?\\}/);\n    if (reschedMatch) {\n        try { rescheduleData = JSON.parse(reschedMatch[0]); } catch (e) { }\n    }\n    text = text.replace(/\\{[^{}]*\"hasReschedule\"[\\s\\S]*?\\}/g, '').trim();\n}\n\n// Final cleanup\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
             },
             "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
             "name": "Parse Order Intent",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -256,
-                5024
+                -352,
+                5392
             ]
         },
         {
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=You are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON)."
+                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou are also responsible for managing client consultations and meetings. You must handle scheduling in two distinct stages:\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf the client asks for a meeting, a call, or a consultation, DO NOT guess your availability or propose specific times.\n- Set the JSON flag \"hasMeetingIntent\" to true.\n- Set your text output to exactly: \"I would be happy to schedule a meeting. Let me quickly check my calendar for available times...\"\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client replies and agrees to a specific time slot (after you have proposed times to them), you must officially book it.\n- Set the JSON flag \"hasBookingConfirmation\" to true.\n- Populate the \"meetingData\" JSON block with the following keys:\n  1. \"clientName\": The name of the person or company booking the call.\n  2. \"startTime\": The exact agreed-upon date and time formatted strictly in ISO 8601 format (e.g., 2026-08-05T10:00:00+06:00).\n  3. \"endTime\": The end date and time in strict ISO 8601 format (default to 30 minutes after the start time if the client did not specify a duration).\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Set the JSON flag \"hasCancellation\" to true.\n- Set \"targetClientName\" to their name/company.\n- Reply conversationally confirming the cancellation.\n\nIf the client asks to reschedule to a new time:\n- HARD FRIDAY CHECK: If the requested new time falls on a Friday (e.g., if today is Thursday and they ask for \"tomorrow\"), DO NOT output any JSON. Instead, politely inform the client that Fridays are closed, and ask for an alternative day.\n- IF NOT FRIDAY: Set the JSON flag \"hasReschedule\" to true.\n- Set \"targetClientName\" to their name/company.\n- Set \"newStartTime\" and \"newEndTime\" in strict ISO 8601 format (using the current year).\n- Reply confirming the new time."
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -83,8 +83,8 @@
             "type": "@n8n/n8n-nodes-langchain.agent",
             "typeVersion": 1.7,
             "position": [
-                -560,
-                5024
+                -656,
+                5392
             ]
         },
         {
@@ -100,8 +100,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                -368,
-                5216
+                -464,
+                5584
             ],
             "credentials": {
                 "postgres": {
@@ -118,8 +118,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1.1,
             "position": [
-                -624,
-                5216
+                -720,
+                5584
             ],
             "id": "123b9679-e477-4036-9996-42f72e751176",
             "name": "Chat Model",
@@ -135,8 +135,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                -368,
-                5392
+                -464,
+                5760
             ],
             "id": "3f9f3677-a4db-4f21-a8d6-4232871bdd8b",
             "name": "Embeddings Gemini(Query)",
@@ -158,8 +158,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -816,
-                5024
+                -912,
+                5392
             ]
         },
         {
@@ -169,8 +169,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -1008,
-                5152
+                -1104,
+                5520
             ]
         },
         {
@@ -198,8 +198,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -1216,
-                5040
+                -1312,
+                5408
             ]
         },
         {
@@ -208,8 +208,8 @@
                     "assignments": [
                         {
                             "id": "n1",
-                            "name": "customerContext",
-                            "value": "=New or unrecognized customer. No order history on file.",
+                            "name": "=customerContext",
+                            "value": "=New or unrecognized customer. No order history on file.\n\n\n### Client Details ###\n{{ JSON.stringify($('Build Customer Context').first().json.clientInfo, null, 2) }}",
                             "type": "string"
                         },
                         {
@@ -227,8 +227,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -1216,
-                5232
+                -1312,
+                5616
             ]
         },
         {
@@ -288,8 +288,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -1408,
-                5152
+                -1536,
+                5520
             ]
         },
         {
@@ -301,21 +301,21 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1616,
-                4896
+                -1712,
+                5264
             ]
         },
         {
             "parameters": {
-                "jsCode": "const orders = $input.all();\n\n// Verify we have items AND the first item actually contains a real database order_id\nconst isReturning = orders.length > 0 && orders[0].json.order_id !== undefined;\n\nlet summary = 'No prior order history found for this number.';\nif (isReturning) {\n  summary = 'This customer has prior orders:\\n' + orders.map(o => `- Order ${o.json.order_id}: ${o.json.product_name} x${o.json.quantity}, status: ${o.json.order_status}, date: ${o.json.order_date}`).join('\\n');\n}\n\nreturn [{ json: { customerType: isReturning ? 'returning' : 'new', ordersSummary: summary } }];"
+                "jsCode": "const rows = $input.all();\n\n// 1. Verify if the client exists in the database at all\nconst isKnownClient = rows.length > 0 && rows[0].json.email !== undefined;\n\n// 2. Verify if they actually have orders (handling the LEFT JOIN nulls)\nconst hasOrders = rows.length > 0 && rows[0].json.order_id !== null && rows[0].json.order_id !== undefined;\n\n// 3. Extract the client info from the first row\nconst clientInfo = {\n  isKnownClient: isKnownClient,\n  clientEmail: isKnownClient ? rows[0].json.email : 'None',\n  clientName: isKnownClient ? (rows[0].json.full_name || 'None') : 'None',\n  companyName: isKnownClient ? (rows[0].json.company_name || 'None') : 'None',\n  clientType: isKnownClient ? (rows[0].json.client_type || 'regular') : 'regular'\n}\n\n// 4. Build the order summary\nlet summary = 'No prior order history found for this number.';\nif (hasOrders) {\n  summary = 'This customer has prior orders:\\n' + rows.map(r => \n    `- Order ${r.json.order_id}: ${r.json.product_name} x${r.json.quantity}, status: ${r.json.order_status}, date: ${r.json.order_date}`\n  ).join('\\n');\n}\n\n// 5. Output the combined context\nreturn [{ \n  json: { \n    customerType: hasOrders ? 'returning' : 'new',\n    clientInfo: clientInfo,\n    ordersSummary: summary \n  } \n}];"
             },
             "id": "a13a8070-b456-4aed-898c-cc1cba77de00",
             "name": "Build Customer Context",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1616,
-                5152
+                -1728,
+                5520
             ]
         },
         {
@@ -329,8 +329,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1808,
-                4896
+                -1904,
+                5264
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -343,7 +343,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT order_id, product_name, quantity, order_status, order_date \nFROM orders \nWHERE phone_number = '+{{ $json.from.replace(\"@c.us\", \"\") }}' \nORDER BY order_date DESC \nLIMIT 5;",
+                "query": "SELECT \n    c.email,\n    c.full_name,\n    c.company_name,\n    c.client_type,\n    o.order_id, \n    o.product_name, \n    o.quantity, \n    o.order_status, \n    o.order_date\nFROM Client c\nLEFT JOIN orders o ON c.phone_number = o.phone_number\nWHERE c.phone_number = '{{ $json.from.replace(\"@c.us\", \"\") }}'\nORDER BY o.order_date DESC \nLIMIT 5;",
                 "options": {}
             },
             "id": "e66147ac-94c3-4556-a281-3655f8f381c9",
@@ -351,8 +351,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1808,
-                5152
+                -1936,
+                5520
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -399,8 +399,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -2032,
-                4992
+                -2128,
+                5360
             ]
         },
         {
@@ -410,8 +410,8 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -2032,
-                5200
+                -2320,
+                5664
             ]
         },
         {
@@ -460,8 +460,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -2256,
-                5072
+                -2352,
+                5440
             ]
         },
         {
@@ -475,8 +475,8 @@
             "type": "n8n-nodes-base.webhook",
             "typeVersion": 2,
             "position": [
-                -2480,
-                5072
+                -2576,
+                5440
             ],
             "webhookId": "openwa-webhook"
         },
@@ -495,8 +495,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                912,
-                4256
+                1552,
+                4240
             ]
         },
         {
@@ -510,8 +510,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1136,
-                4256
+                1776,
+                4240
             ],
             "credentials": {
                 "postgres": {
@@ -531,8 +531,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1360,
-                4256
+                2000,
+                4240
             ],
             "credentials": {
                 "postgres": {
@@ -552,8 +552,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1584,
-                4256
+                2224,
+                4240
             ],
             "credentials": {
                 "postgres": {
@@ -581,7 +581,7 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                -2480,
+                -2576,
                 4432
             ]
         },
@@ -594,7 +594,7 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -2256,
+                -2352,
                 4432
             ]
         },
@@ -655,7 +655,7 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -2032,
+                -2128,
                 4432
             ]
         },
@@ -669,7 +669,7 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -1808,
+                -1904,
                 4304
             ]
         },
@@ -683,7 +683,7 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -1808,
+                -1904,
                 4576
             ]
         },
@@ -696,7 +696,7 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -1632,
+                -1728,
                 4304
             ]
         },
@@ -709,7 +709,7 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -1632,
+                -1728,
                 4592
             ]
         },
@@ -722,7 +722,7 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1408,
+                -1504,
                 4304
             ]
         },
@@ -737,7 +737,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1408,
+                -1504,
                 4592
             ],
             "credentials": {
@@ -758,7 +758,7 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                -1200,
+                -1296,
                 4192
             ],
             "credentials": {
@@ -773,7 +773,7 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                -1232,
+                -1328,
                 4400
             ],
             "id": "1f5981e5-03fc-4ed9-9eea-835eb6024a34",
@@ -792,7 +792,7 @@
             "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
             "typeVersion": 1.1,
             "position": [
-                -1056,
+                -1152,
                 4416
             ],
             "id": "afc6fa17-307e-4bc9-b3ad-17fe625361e0",
@@ -805,7 +805,7 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -816,
+                -912,
                 4576
             ]
         },
@@ -816,7 +816,7 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -528,
+                -624,
                 4576
             ]
         },
@@ -829,8 +829,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                144,
-                4848
+                112,
+                5216
             ],
             "id": "22395edb-e4ab-408b-b109-5e24c0673677",
             "name": "Log Conversation1",
@@ -850,8 +850,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                -48,
-                5248
+                -80,
+                5616
             ],
             "id": "b0206eca-dbaf-4fd8-8003-d6d4d340fdd2",
             "name": "Conditional Client Upsert",
@@ -877,8 +877,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                848,
-                4592
+                1488,
+                4576
             ]
         },
         {
@@ -892,8 +892,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1088,
-                4592
+                1728,
+                4576
             ],
             "credentials": {
                 "postgres": {
@@ -915,8 +915,8 @@
             "type": "@n8n/n8n-nodes-langchain.agent",
             "typeVersion": 1.7,
             "position": [
-                1328,
-                4592
+                1968,
+                4576
             ]
         },
         {
@@ -927,8 +927,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1.1,
             "position": [
-                1280,
-                4800
+                1920,
+                4784
             ],
             "id": "8352f30c-ad8f-4e74-830b-cc38e66106bf",
             "name": "Gemini Flash (Copywriter)",
@@ -964,8 +964,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1648,
-                4592
+                2288,
+                4576
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -985,8 +985,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1888,
-                4592
+                2528,
+                4576
             ],
             "credentials": {
                 "postgres": {
@@ -1003,7 +1003,7 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                -2528,
+                -2624,
                 4160
             ],
             "typeVersion": 1,
@@ -1013,14 +1013,14 @@
         {
             "parameters": {
                 "content": "# OpenWA Conversation",
-                "height": 736,
-                "width": 2848,
+                "height": 1616,
+                "width": 3920,
                 "color": 6
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                -2528,
-                4800
+                -2624,
+                4832
             ],
             "typeVersion": 1,
             "id": "370efe0f-40f0-426e-b952-652010fa99d9",
@@ -1035,8 +1035,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                800,
-                4192
+                1440,
+                4176
             ],
             "typeVersion": 1,
             "id": "78bfa8ff-7301-4ff5-b27a-3abeb2205b84",
@@ -1051,8 +1051,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                800,
-                4512
+                1440,
+                4496
             ],
             "typeVersion": 1,
             "id": "caa4b65c-6e0b-47c7-85f8-853daca3466a",
@@ -1086,8 +1086,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                864,
-                5088
+                1504,
+                5072
             ],
             "id": "8562245b-ae33-43e4-b973-997020cbf508",
             "name": "If"
@@ -1106,8 +1106,8 @@
             "type": "n8n-nodes-base.googleDrive",
             "typeVersion": 3,
             "position": [
-                1104,
-                5072
+                1744,
+                5056
             ],
             "id": "f8d0c12c-b0b7-40de-b3f7-fef9c36e6c90",
             "name": "Duplicate Template (Google Drive)",
@@ -1160,8 +1160,8 @@
             "type": "n8n-nodes-base.googleDocs",
             "typeVersion": 2,
             "position": [
-                1296,
-                5072
+                1936,
+                5056
             ],
             "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
             "name": "Update a document",
@@ -1193,8 +1193,8 @@
             "type": "n8n-nodes-base.googleDrive",
             "typeVersion": 3,
             "position": [
-                1488,
-                5072
+                2128,
+                5056
             ],
             "credentials": {
                 "googleDriveOAuth2Api": {
@@ -1228,8 +1228,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1872,
-                5072
+                2512,
+                5056
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -1241,14 +1241,14 @@
         {
             "parameters": {
                 "content": "# Quote Generation",
-                "height": 256,
+                "height": 416,
                 "width": 1296,
                 "color": 4
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                800,
-                5008
+                1440,
+                4992
             ],
             "typeVersion": 1,
             "id": "78ad23e0-9c70-4b88-9602-25424a689805",
@@ -1261,11 +1261,523 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                1680,
-                5072
+                2320,
+                5056
             ],
             "id": "79beb6e4-1195-4c06-8054-d9f3f27a4780",
             "name": "Code in JavaScript"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-order-intent",
+                            "leftValue": "={{ $json.hasOrder }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -80,
+                5824
+            ],
+            "id": "1de25aa0-1456-4dab-95a5-8865f86768df",
+            "name": "If Order Intent"
+        },
+        {
+            "parameters": {
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "start": "={{ $now.setZone('Asia/Dhaka').plus({ days: 14 }).toFormat('yyyy-MM-dd') + 'T09:00:00+06:00' }}",
+                "end": "={{ $now.setZone('Asia/Dhaka').plus({ days: 14 }).toFormat('yyyy-MM-dd') + 'T17:00:00+06:00' }}",
+                "additionalFields": {
+                    "description": "=Deliver {{ $('Parse Order Intent').first().json.orderData.quantity }} units of {{ $('Parse Order Intent').first().json.orderData.product_name }}.",
+                    "summary": "=Fulfillment Deadline: {{ $('Parse Order Intent').first().json.orderData.company_name || 'Client' }}"
+                }
+            },
+            "id": "7cdac345-dd0c-4e7e-ac10-1f54eb640dbe",
+            "name": "Log Fulfillment Deadline",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                144,
+                5824
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-meeting-intent",
+                            "leftValue": "={{ $json.hasMeetingIntent }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -96,
+                5040
+            ],
+            "id": "7f12b041-afe8-4cc9-8bbc-56cbaf33b56e",
+            "name": "If Meeting Intent"
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "returnAll": true,
+                "options": {
+                    "timeMin": "={{ $now.setZone('Asia/Dhaka').toISO() }}",
+                    "timeMax": "={{ $now.setZone('Asia/Dhaka').plus({ days: 7 }).toISO() }}",
+                    "singleEvents": true,
+                    "orderBy": "startTime",
+                    "timeZone": {
+                        "__rl": true,
+                        "value": "Asia/Dhaka",
+                        "mode": "list",
+                        "cachedResultName": "Asia/Dhaka"
+                    }
+                }
+            },
+            "id": "d3886de9-0334-42c8-85fc-007ddb8945ef",
+            "name": "Check Availability (7 Days)",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                128,
+                5040
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-booking-confirm",
+                            "leftValue": "={{ $json.hasBookingConfirmation }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -96,
+                4864
+            ],
+            "id": "c796a205-addd-4854-bc75-2c063905f2cd",
+            "name": "If Booking Confirmation"
+        },
+        {
+            "parameters": {
+                "jsCode": "const events = $input.all();\nlet scheduleText = \"Here are my busy times for the next 7 days:\\n\";\n\nif (events.length === 0) {\n  scheduleText = \"I have no meetings scheduled. I am completely free.\";\n} else {\n  events.forEach(event => {\n    const start = event.json.start?.dateTime || event.json.start?.date;\n    const end = event.json.end?.dateTime || event.json.end?.date;\n    const title = event.json.summary || \"Busy\";\n    scheduleText += `- ${title}: From ${start} to ${end}\\n`;\n  });\n}\n\nreturn [{ json: { busySchedule: scheduleText } }];"
+            },
+            "id": "e9f14f63-fe01-4176-af93-ebb789e0164c",
+            "name": "Format Schedule for AI",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                336,
+                5040
+            ]
+        },
+        {
+            "parameters": {
+                "fields": {
+                    "values": [
+                        {
+                            "name": "system_prompt",
+                            "stringValue": "={{`You are a helpful B2B booking assistant.\nToday's Date: ${$now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy')}\n\nThe client wants to schedule a meeting. Here is our currently busy schedule for the next 7 days:\n\n${$json.busySchedule}\n\nPlease review these busy times and propose two specific open time slots to the client in a friendly, conversational tone. \n\nCRITICAL RULES:\n1. NEVER propose a time slot that falls on a Friday. Friday is the weekend in Bangladesh.\n2. Ensure all dates reflect the current year (${$now.setZone('Asia/Dhaka').toFormat('yyyy')}). \n3. Do not use any hidden tags. Just write the exact message to send to the client.`}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "75775d87-43b5-4790-99fd-ddf0b469c807",
+            "name": "Prepare Negotiator Prompt",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.2,
+            "position": [
+                560,
+                5040
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Parse Order Intent').first().json.sessionId }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Parse Order Intent').first().json.from, \"text\": $json.content.parts[0].text } }}",
+                "options": {}
+            },
+            "id": "6e326b24-d799-4eee-b2d9-0d345e83f8f7",
+            "name": "Send Times via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1088,
+                5040
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "models/gemini-3-flash-preview"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "={{ $json.system_prompt }}"
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.2,
+            "position": [
+                768,
+                5040
+            ],
+            "id": "ffc98322-dfb1-42ca-8ef2-1c168eac2f2d",
+            "name": "Message a model",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "start": "={{ $now.setZone('Asia/Dhaka').plus({ days: $now.setZone('Asia/Dhaka').plus({days: 3}).weekday === 5 ? 4 : 3 }).toFormat('yyyy-MM-dd') + 'T10:00:00+06:00' }}",
+                "end": "={{ $now.setZone('Asia/Dhaka').plus({ days: $now.setZone('Asia/Dhaka').plus({days: 3}).weekday === 5 ? 4 : 3 }).toFormat('yyyy-MM-dd') + 'T10:30:00+06:00' }}",
+                "additionalFields": {
+                    "description": "Automated reminder to follow up on the Aim Green quote sent via WhatsApp.",
+                    "summary": "=Follow-up with {{ $('Parse Order Intent').first().json.quoteData.company_name }} regarding Quote"
+                }
+            },
+            "id": "2288968b-dd9f-4c17-9612-89703a444065",
+            "name": "Create Follow-up Reminder",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                2320,
+                5248
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "start": "={{ $('Parse Order Intent').first().json.meetingData.startTime }}",
+                "end": "={{ $('Parse Order Intent').first().json.meetingData.endTime }}",
+                "additionalFields": {
+                    "description": "Automated reminder to follow up on the Aim Green client consultation.",
+                    "summary": "=Follow-up with {{ $('Parse Order Intent').first().json.meetingData.clientName }} regarding Quote"
+                }
+            },
+            "id": "341f4f1c-ff22-4c40-b34f-15019f180111",
+            "name": "Schedule Client Consultation",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                128,
+                4864
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "1",
+                                        "leftValue": "={{ $json.hasCancellation }}",
+                                        "rightValue": true,
+                                        "operator": {
+                                            "type": "boolean",
+                                            "operation": "true"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "Cancel Meeting"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "2",
+                                        "leftValue": "={{ $json.hasReschedule }}",
+                                        "rightValue": true,
+                                        "operator": {
+                                            "type": "boolean",
+                                            "operation": "true"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "Reschedule Meeting"
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "none"
+                }
+            },
+            "id": "f9aab46a-5403-4c35-a1a3-d72aa5b86e20",
+            "name": "Route Cancel/Reschedule",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                -80,
+                6160
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "calendar": {
+                    "__rl": true,
+                    "value": "primary",
+                    "mode": "list",
+                    "cachedResultName": "Primary Calendar"
+                },
+                "returnAll": true,
+                "options": {
+                    "query": "={{ $json.targetClientName }}"
+                }
+            },
+            "id": "55625d12-40b3-4407-9bd4-12144dae1f46",
+            "name": "Search Calendar (Cancel)",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.1,
+            "position": [
+                160,
+                6048
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "delete",
+                "calendar": {
+                    "__rl": true,
+                    "value": "primary",
+                    "mode": "list",
+                    "cachedResultName": "Primary Calendar"
+                },
+                "eventId": "={{ $json.id }}",
+                "options": {
+                    "sendUpdates": "all"
+                }
+            },
+            "id": "292b3364-574e-44d0-b7ee-6169269a7afc",
+            "name": "Delete Event",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.1,
+            "position": [
+                384,
+                6048
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "calendar": {
+                    "__rl": true,
+                    "value": "primary",
+                    "mode": "list",
+                    "cachedResultName": "Primary Calendar"
+                },
+                "returnAll": true,
+                "options": {
+                    "query": "={{ $('Parse Order Intent').first().json.targetClientName || $('Parse Order Intent').first().json.rescheduleData.targetClientName }}"
+                }
+            },
+            "id": "7f2ccb74-6fe8-4648-a958-ffd4bff7e14e",
+            "name": "Search Calendar (Reschedule)",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.1,
+            "position": [
+                160,
+                6272
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "calendar": {
+                    "__rl": true,
+                    "value": "primary",
+                    "mode": "list",
+                    "cachedResultName": "Primary Calendar"
+                },
+                "eventId": "={{ $json.id }}",
+                "updateFields": {
+                    "end": "={{ $('Parse Order Intent').first().json.rescheduleData.newEndTime }}",
+                    "sendUpdates": "all",
+                    "start": "={{ $('Parse Order Intent').first().json.rescheduleData.newStartTime }}"
+                }
+            },
+            "id": "04d4ff33-c9c2-4c5c-9658-4c4892553c2e",
+            "name": "Update Event",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.1,
+            "position": [
+                384,
+                6272
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "Gt559MU7mcyzgbbw",
+                    "name": "Google Calendar account"
+                }
+            }
         }
     ],
     "pinData": {},
@@ -1301,6 +1813,26 @@
                     },
                     {
                         "node": "If",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Order Intent",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Meeting Intent",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Booking Confirmation",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Route Cancel/Reschedule",
                         "type": "main",
                         "index": 0
                     }
@@ -1461,12 +1993,12 @@
             "main": [
                 [
                     {
-                        "node": "Fetch Conversation History",
+                        "node": "Lookup Customer Orders",
                         "type": "main",
                         "index": 0
                     },
                     {
-                        "node": "Lookup Customer Orders",
+                        "node": "Fetch Conversation History",
                         "type": "main",
                         "index": 0
                     }
@@ -1780,6 +2312,11 @@
                         "node": "Code in JavaScript",
                         "type": "main",
                         "index": 0
+                    },
+                    {
+                        "node": "Create Follow-up Reminder",
+                        "type": "main",
+                        "index": 0
                     }
                 ]
             ]
@@ -1794,6 +2331,123 @@
                     }
                 ]
             ]
+        },
+        "If Order Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Log Fulfillment Deadline",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Meeting Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Check Availability (7 Days)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Booking Confirmation": {
+            "main": [
+                [
+                    {
+                        "node": "Schedule Client Consultation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Schedule for AI": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Negotiator Prompt",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Negotiator Prompt": {
+            "main": [
+                [
+                    {
+                        "node": "Message a model",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Message a model": {
+            "main": [
+                [
+                    {
+                        "node": "Send Times via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Availability (7 Days)": {
+            "main": [
+                [
+                    {
+                        "node": "Format Schedule for AI",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Cancel/Reschedule": {
+            "main": [
+                [
+                    {
+                        "node": "Search Calendar (Cancel)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Search Calendar (Reschedule)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Search Calendar (Cancel)": {
+            "main": [
+                [
+                    {
+                        "node": "Delete Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Search Calendar (Reschedule)": {
+            "main": [
+                [
+                    {
+                        "node": "Update Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -1801,7 +2455,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "ba63d382-b659-422b-9620-dd4c9ef76379",
+    "versionId": "61086b00-d433-4b15-b705-4bf76b834b96",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
