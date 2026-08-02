@@ -59,7 +59,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\nlet hasCancellation = false; let targetClientName = \"\";\nlet hasReschedule = false; let rescheduleData = {};\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 4. Check for Meeting Intent (Stage 1)\nif (text.includes('|||MEETING_INTENT|||')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\|\\|\\|MEETING_INTENT\\|\\|\\|/g, '').trim();\n}\n\n// 5. Check for Booking Confirmation (Stage 2)\nconst bookingMatch = text.match(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/);\nif (bookingMatch) {\n    hasBookingConfirmation = true;\n    try { meetingData = JSON.parse(bookingMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 6. Check for Cancellations (Stage 3)\nconst cancelMatch = text.match(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/);\nif (cancelMatch) {\n    hasCancellation = true;\n    try { targetClientName = JSON.parse(cancelMatch[1]).targetClientName; } catch (e) { }\n    text = text.replace(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 7. Check for Rescheduling (Stage 3)\nconst reschedMatch = text.match(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/);\nif (reschedMatch) {\n    hasReschedule = true;\n    try { rescheduleData = JSON.parse(reschedMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// Final cleanup (Removes any accidental markdown blocks left by the AI)\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
+                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\nlet hasCancellation = false; let targetClientName = \"\";\nlet hasReschedule = false; let rescheduleData = {};\nlet hasBuyingIntent = false; // NEW: Phase 2 Lead Scoring\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 4. Check for Buying Intent (Phase 2 Lead Scoring)\nif (text.includes('|||INTENT:B2B_PRICING|||')) {\n    hasBuyingIntent = true;\n    text = text.replace(/\\|\\|\\|INTENT:B2B_PRICING\\|\\|\\|/g, '').trim();\n}\n\n// 5. Check for Meeting Intent (Stage 1)\nif (text.includes('|||MEETING_INTENT|||')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\|\\|\\|MEETING_INTENT\\|\\|\\|/g, '').trim();\n}\n\n// 6. Check for Booking Confirmation (Stage 2)\nconst bookingMatch = text.match(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/);\nif (bookingMatch) {\n    hasBookingConfirmation = true;\n    try { meetingData = JSON.parse(bookingMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 7. Check for Cancellations (Stage 3)\nconst cancelMatch = text.match(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/);\nif (cancelMatch) {\n    hasCancellation = true;\n    try { targetClientName = JSON.parse(cancelMatch[1]).targetClientName; } catch (e) { }\n    text = text.replace(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 8. Check for Rescheduling (Stage 3)\nconst reschedMatch = text.match(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/);\nif (reschedMatch) {\n    hasReschedule = true;\n    try { rescheduleData = JSON.parse(reschedMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// Final cleanup (Removes any accidental markdown blocks left by the AI)\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        hasBuyingIntent: hasBuyingIntent,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
             },
             "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
             "name": "Parse Order Intent",
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
+                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### LEAD SCORING & BUYING INTENT ###\nIf the client asks specific business-related questions (e.g., bulk pricing, Minimum Order Quantities (MOQ), shipping times, or specific product details), you must flag them as a warm lead. \nContinue the conversation normally, but append this exact tag to the absolute end of your response:\n|||INTENT:B2B_PRICING|||\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -582,7 +582,7 @@
             "typeVersion": 1.2,
             "position": [
                 -2576,
-                4432
+                4256
             ]
         },
         {
@@ -595,7 +595,7 @@
             "typeVersion": 2,
             "position": [
                 -2352,
-                4432
+                4256
             ]
         },
         {
@@ -656,7 +656,7 @@
             "typeVersion": 3,
             "position": [
                 -2128,
-                4432
+                4256
             ]
         },
         {
@@ -670,7 +670,7 @@
             "typeVersion": 1,
             "position": [
                 -1904,
-                4304
+                4128
             ]
         },
         {
@@ -684,7 +684,7 @@
             "typeVersion": 1,
             "position": [
                 -1904,
-                4576
+                4400
             ]
         },
         {
@@ -697,7 +697,7 @@
             "typeVersion": 1,
             "position": [
                 -1728,
-                4304
+                4128
             ]
         },
         {
@@ -710,7 +710,7 @@
             "typeVersion": 1,
             "position": [
                 -1728,
-                4592
+                4416
             ]
         },
         {
@@ -723,7 +723,7 @@
             "typeVersion": 2,
             "position": [
                 -1504,
-                4304
+                4128
             ]
         },
         {
@@ -738,7 +738,7 @@
             "typeVersion": 2.5,
             "position": [
                 -1504,
-                4592
+                4416
             ],
             "credentials": {
                 "postgres": {
@@ -759,7 +759,7 @@
             "typeVersion": 1,
             "position": [
                 -1296,
-                4192
+                4016
             ],
             "credentials": {
                 "postgres": {
@@ -774,7 +774,7 @@
             "typeVersion": 1,
             "position": [
                 -1328,
-                4400
+                4224
             ],
             "id": "1f5981e5-03fc-4ed9-9eea-835eb6024a34",
             "name": "Embeddings Gemini(Ingestion)",
@@ -793,7 +793,7 @@
             "typeVersion": 1.1,
             "position": [
                 -1152,
-                4416
+                4240
             ],
             "id": "afc6fa17-307e-4bc9-b3ad-17fe625361e0",
             "name": "Default Data Loader"
@@ -806,7 +806,7 @@
             "typeVersion": 3,
             "position": [
                 -912,
-                4576
+                4400
             ]
         },
         {
@@ -817,7 +817,7 @@
             "typeVersion": 1,
             "position": [
                 -624,
-                4576
+                4400
             ]
         },
         {
@@ -1004,7 +1004,7 @@
             "type": "n8n-nodes-base.stickyNote",
             "position": [
                 -2624,
-                4160
+                3984
             ],
             "typeVersion": 1,
             "id": "243eede3-ff16-47e5-a02f-861fbbf38a2c",
@@ -1013,14 +1013,14 @@
         {
             "parameters": {
                 "content": "# OpenWA Conversation",
-                "height": 1616,
+                "height": 1792,
                 "width": 3920,
                 "color": 6
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
                 -2624,
-                4832
+                4656
             ],
             "typeVersion": 1,
             "id": "370efe0f-40f0-426e-b952-652010fa99d9",
@@ -2067,6 +2067,229 @@
             ],
             "id": "1286a2d4-a835-4c92-ad12-6a17454af860",
             "name": "If Register Intent"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO client (phone_number, client_type, lead_score, intent_tags, updated_at)\nVALUES ('{{ $json.from.replace(\"@c.us\", \"\") }}', 'unregistered', 0, '[]'::jsonb, NOW())\nON CONFLICT (phone_number) DO NOTHING;",
+                "options": {}
+            },
+            "id": "0e6590c3-267a-4651-99cb-490e05505bd9",
+            "name": "Initialize Ghost Lead",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -1904,
+                5104
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-buying-intent",
+                            "leftValue": "={{ $json.hasBuyingIntent }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "09e86faf-ba92-4048-9075-c57997b0ab1a",
+            "name": "If Buying Intent",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -96,
+                4688
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET lead_score = lead_score + 20,\n    updated_at = NOW()\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
+                "options": {}
+            },
+            "id": "27e1f3e6-2bf2-42a7-a03d-f15c64cf7ada",
+            "name": "Increment Lead Score",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                128,
+                4688
+            ],
+            "alwaysOutputData": false,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "id": "3645c5b9-7f34-401a-bcd9-069e757b1a46",
+            "name": "Every Day at 10 AM",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1472,
+                5888
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT c.phone_number, \n       (SELECT session_id FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 1) as session_id,\n       (SELECT string_agg('Client: ' || COALESCE(sub.user_message, '') || CHR(10) || 'AI: ' || COALESCE(sub.bot_reply, ''), CHR(10) || '---' || CHR(10)) \n        FROM (SELECT user_message, bot_reply FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 5) sub\n       ) as chat_history\nFROM client c\nWHERE c.lead_score >= 20 \n  AND c.client_type = 'unregistered'\n  AND c.updated_at < NOW() - INTERVAL '24 hours'\n  AND c.updated_at > NOW() - INTERVAL '24 hours';",
+                "options": {}
+            },
+            "id": "47ea6c04-8bfb-48f4-8f2e-3fcfaded14dc",
+            "name": "Find Ghost Leads (24h-48h)",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1680,
+                5888
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=You are a helpful B2B sales assistant. A potential client reached out yesterday about bulk pricing but went cold.\n\nHere are the last few messages of your conversation:\n{{ $json.chat_history }}\n\nDraft a 1-sentence WhatsApp message to re-engage them. DO NOT push for a sale. Offer a helpful resource (like a PDF catalog), ask if they need clarification on the pricing provided, or just check in warmly.\nOutput ONLY the exact message text, nothing else."
+            },
+            "id": "cc84b2a4-47ba-4783-927c-2d68c0bd1853",
+            "name": "AI Drafts Re-engagement",
+            "type": "@n8n/n8n-nodes-langchain.chainLlm",
+            "typeVersion": 1.4,
+            "position": [
+                1856,
+                5872
+            ]
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-3.6-flash",
+                "options": {}
+            },
+            "id": "1c1ec169-9b08-47dc-9b14-79efe5610b13",
+            "name": "Google Gemini Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                1952,
+                6016
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $json.session_id || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Find Ghost Leads (24h-48h)').item.json.phone_number + \"@c.us\", \"text\": $json.text } }}",
+                "options": {}
+            },
+            "id": "881464a6-17a8-4363-9ba1-966c3f6e6651",
+            "name": "Send via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2144,
+                5872
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET updated_at = NOW()\nWHERE phone_number = '{{ $('Find Ghost Leads (24h-48h)').item.json.phone_number }}';\n",
+                "options": {}
+            },
+            "id": "b87d9c5f-4da9-4002-9512-b2e40959c30b",
+            "name": "Update Last Touch",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2288,
+                5872
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Re-connecting with ghost leeads",
+                "height": 368,
+                "width": 1040,
+                "color": "#E2621D"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                1440,
+                5792
+            ],
+            "typeVersion": 1,
+            "id": "3f2633ee-a456-44ee-80da-d381bc41b3f0",
+            "name": "Sticky Note6"
         }
     ],
     "pinData": {},
@@ -2117,6 +2340,11 @@
                     },
                     {
                         "node": "If Register Intent",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Buying Intent",
                         "type": "main",
                         "index": 0
                     }
@@ -2283,6 +2511,11 @@
                     },
                     {
                         "node": "Fetch Conversation History",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Initialize Ghost Lead",
                         "type": "main",
                         "index": 0
                     }
@@ -2814,6 +3047,72 @@
                     }
                 ]
             ]
+        },
+        "If Buying Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Increment Lead Score",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Every Day at 10 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Find Ghost Leads (24h-48h)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Find Ghost Leads (24h-48h)": {
+            "main": [
+                [
+                    {
+                        "node": "AI Drafts Re-engagement",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Gemini Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Drafts Re-engagement",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Drafts Re-engagement": {
+            "main": [
+                [
+                    {
+                        "node": "Send via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Update Last Touch",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -2821,7 +3120,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "952776b7-cab0-4cca-bc7f-2ee286f59f71",
+    "versionId": "0f6894c7-14a6-49bb-a896-fc842708c374",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
