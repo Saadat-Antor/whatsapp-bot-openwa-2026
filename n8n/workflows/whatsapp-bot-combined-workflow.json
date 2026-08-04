@@ -2265,7 +2265,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2288,
+                2304,
                 5872
             ],
             "credentials": {
@@ -2277,7 +2277,7 @@
         },
         {
             "parameters": {
-                "content": "# Re-connecting with ghost leeads",
+                "content": "# Re-connecting with ghost leads",
                 "height": 368,
                 "width": 1040,
                 "color": "#E2621D"
@@ -3120,7 +3120,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "0f6894c7-14a6-49bb-a896-fc842708c374",
+    "versionId": "4989682e-5fb2-4375-bdb1-26b81eae43e4",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
