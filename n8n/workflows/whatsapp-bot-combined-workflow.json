@@ -47,8 +47,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                272,
-                5648
+                400,
+                5680
             ],
             "credentials": {
                 "postgres": {
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"product_name\": \"NAME\", \"quantity\": NUMBER}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"total_price\": NUMBER}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### LEAD SCORING & BUYING INTENT ###\nIf the client asks specific business-related questions (e.g., bulk pricing, Minimum Order Quantities (MOQ), shipping times, or specific product details), you must flag them as a warm lead. \nContinue the conversation normally, but append this exact tag to the absolute end of your response:\n|||INTENT:B2B_PRICING|||\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
+                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"order_id\": '{{ 'ORD-' + Math.floor(1000000 + Math.random() * 9000000) }}', \"product_name\": \"NAME\", \"unit_price\": \"NUMBER\", \"quantity\": \"NUMBER\", discount_prcnt: \"NUMBER\"}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": \"NUMBER\", \"unit_price\": \"NUMBER\", \"discount_prcnt\": \"NUMBER\"}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### LEAD SCORING & BUYING INTENT ###\nIf the client asks specific business-related questions (e.g., bulk pricing, Minimum Order Quantities (MOQ), shipping times, or specific product details), you must flag them as a warm lead. \nContinue the conversation normally, but append this exact tag to the absolute end of your response:\n|||INTENT:B2B_PRICING|||\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -485,88 +485,6 @@
                 "rule": {
                     "interval": [
                         {
-                            "field": "hours"
-                        }
-                    ]
-                }
-            },
-            "id": "9df80dde-6a74-4449-9ae8-848d37401874",
-            "name": "Queue Sync Trigger",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
-            "position": [
-                1552,
-                4240
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "SELECT id, phone_number, extracted_json FROM order_intake_queue WHERE processed = FALSE LIMIT 50;",
-                "options": {}
-            },
-            "id": "1e752f0b-b81c-45d3-a233-58110a68c2e9",
-            "name": "Fetch Unprocessed Queue",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1776,
-                4240
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES (\n  $${{ $json.phone_number }}$$,\n  $${{ $json.extracted_json?.order_id || \"ORD-\" + Math.floor(100000 + Math.random() * 900000) }}$$,\n  $${{ $json.extracted_json?.product_name }}$$,\n  {{ $json.extracted_json?.quantity || 1 }},\n  $${{ $json.extracted_json?.order_status || \"Processing\" }}$$,\n  CURRENT_DATE,\n  now()\n)\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  order_status = EXCLUDED.order_status,\n  order_date = EXCLUDED.order_date,\n  updated_at = now();",
-                "options": {}
-            },
-            "id": "bf2e883d-2951-45e9-a918-94797f6f59cd",
-            "name": "Process & Sync to Orders Table",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                2000,
-                4240
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "UPDATE order_intake_queue SET processed = TRUE WHERE id = {{ $('Fetch Unprocessed Queue').item.json.id }};",
-                "options": {}
-            },
-            "id": "2cac7265-4344-4785-96c8-e321c5c03140",
-            "name": "Mark Queue Rows as Processed",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                2224,
-                4240
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "rule": {
-                    "interval": [
-                        {
                             "field": "weeks",
                             "triggerAtDay": [
                                 1
@@ -851,7 +769,7 @@
             "typeVersion": 2.6,
             "position": [
                 144,
-                5456
+                5392
             ],
             "id": "b0206eca-dbaf-4fd8-8003-d6d4d340fdd2",
             "name": "Conditional Client Upsert",
@@ -1030,7 +948,7 @@
             "parameters": {
                 "content": "# Orders Handling",
                 "height": 272,
-                "width": 992,
+                "width": 1152,
                 "color": 5
             },
             "type": "n8n-nodes-base.stickyNote",
@@ -1046,7 +964,7 @@
             "parameters": {
                 "content": "# Abandoned Quotes Handling",
                 "height": 432,
-                "width": 1264,
+                "width": 1280,
                 "color": 4
             },
             "type": "n8n-nodes-base.stickyNote",
@@ -1057,40 +975,6 @@
             "typeVersion": 1,
             "id": "caa4b65c-6e0b-47c7-85f8-853daca3466a",
             "name": "Sticky Note3"
-        },
-        {
-            "parameters": {
-                "conditions": {
-                    "options": {
-                        "caseSensitive": true,
-                        "leftValue": "",
-                        "typeValidation": "strict",
-                        "version": 3
-                    },
-                    "conditions": [
-                        {
-                            "id": "cddbb5fa-4039-409b-8267-136dc8ce8f7a",
-                            "leftValue": "={{ $json.hasQuote }}",
-                            "rightValue": "",
-                            "operator": {
-                                "type": "boolean",
-                                "operation": "true",
-                                "singleValue": true
-                            }
-                        }
-                    ],
-                    "combinator": "and"
-                },
-                "options": {}
-            },
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 2.3,
-            "position": [
-                1504,
-                5072
-            ],
-            "id": "8562245b-ae33-43e4-b973-997020cbf508",
-            "name": "If"
         },
         {
             "parameters": {
@@ -1120,60 +1004,6 @@
         },
         {
             "parameters": {
-                "operation": "update",
-                "documentURL": "={{ $json.id }}",
-                "actionsUi": {
-                    "actionFields": [
-                        {
-                            "action": "replaceAll",
-                            "text": "{{company_name}}",
-                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.company_name }}"
-                        },
-                        {
-                            "action": "replaceAll",
-                            "text": "{{product_name}}",
-                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.product_name }}"
-                        },
-                        {
-                            "action": "replaceAll",
-                            "text": "{{quantity}}",
-                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.quantity) }}"
-                        },
-                        {
-                            "action": "replaceAll",
-                            "text": "{{unit_price}}",
-                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.unit_price) }}"
-                        },
-                        {
-                            "action": "replaceAll",
-                            "text": "{{total_price}}",
-                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.total_price) }}"
-                        },
-                        {
-                            "action": "replaceAll",
-                            "text": "{{date}}",
-                            "replaceText": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}"
-                        }
-                    ]
-                }
-            },
-            "type": "n8n-nodes-base.googleDocs",
-            "typeVersion": 2,
-            "position": [
-                1936,
-                5056
-            ],
-            "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
-            "name": "Update a document",
-            "credentials": {
-                "googleDocsOAuth2Api": {
-                    "id": "UmMv8ac5qlJl0BE9",
-                    "name": "Google Docs account"
-                }
-            }
-        },
-        {
-            "parameters": {
                 "operation": "download",
                 "fileId": {
                     "__rl": true,
@@ -1193,7 +1023,7 @@
             "type": "n8n-nodes-base.googleDrive",
             "typeVersion": 3,
             "position": [
-                2128,
+                2224,
                 5056
             ],
             "credentials": {
@@ -1220,7 +1050,7 @@
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={\n  \"chatId\": \"{{ $('Parse Order Intent').first().json.from }}@c.us\",\n  \"base64\": \"{{ $json.pdf_base64 }}\",\n  \"mimetype\": \"application/pdf\",\n  \"filename\": \"Aim_Green_Quote.pdf\",\n  \"caption\": \"Here is your formal quote. Let me know if you need any adjustments!\"\n}",
+                "jsonBody": "={\n  \"chatId\": \"{{ $('Parse Order Intent').first().json.from }}@c.us\",\n  \"base64\": \"{{ $json.pdf_base64 }}\",\n  \"mimetype\": \"application/pdf\",\n  \"filename\": \"{{ $binary.data.fileName }}\",\n  \"caption\": \"Here is your formal quote. Let me know if you need any adjustments!\"\n}",
                 "options": {}
             },
             "id": "b624f8b6-63eb-4161-a6f5-d675ab7a4907",
@@ -1228,7 +1058,7 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2512,
+                2560,
                 5056
             ],
             "credentials": {
@@ -1242,7 +1072,7 @@
             "parameters": {
                 "content": "# Quote Generation",
                 "height": 416,
-                "width": 1296,
+                "width": 1264,
                 "color": "#6E61CC"
             },
             "type": "n8n-nodes-base.stickyNote",
@@ -1253,19 +1083,6 @@
             "typeVersion": 1,
             "id": "78ad23e0-9c70-4b88-9602-25424a689805",
             "name": "Sticky Note4"
-        },
-        {
-            "parameters": {
-                "jsCode": "const items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].binary && items[i].binary.data) {\n    // Read the PDF from n8n's filesystem memory\n    const buffer = await this.helpers.getBinaryDataBuffer(i, 'data');\n    // Convert to base64 and attach to JSON\n    items[i].json.pdf_base64 = buffer.toString('base64');\n  }\n}\n\nreturn items;"
-            },
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                2320,
-                5056
-            ],
-            "id": "79beb6e4-1195-4c06-8054-d9f3f27a4780",
-            "name": "Code in JavaScript"
         },
         {
             "parameters": {
@@ -1320,8 +1137,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                272,
-                5840
+                400,
+                5856
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1555,7 +1372,7 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                2320,
+                2400,
                 5216
             ],
             "credentials": {
@@ -1835,26 +1652,6 @@
         },
         {
             "parameters": {
-                "rule": {
-                    "interval": [
-                        {
-                            "field": "minutes",
-                            "minutesInterval": 15
-                        }
-                    ]
-                }
-            },
-            "id": "d07fc978-406c-47d7-b5d6-0b647d3642a8",
-            "name": "Every 15 Minutes",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
-            "position": [
-                1488,
-                5584
-            ]
-        },
-        {
-            "parameters": {
                 "operation": "getAll",
                 "calendar": {
                     "__rl": true,
@@ -1978,7 +1775,7 @@
             "parameters": {
                 "content": "# Meeting reminder via whatsapp",
                 "height": 304,
-                "width": 1136,
+                "width": 1120,
                 "color": "#0BEA60"
             },
             "type": "n8n-nodes-base.stickyNote",
@@ -2013,6 +1810,16 @@
                         {
                             "id": "c0b5a0d5-4ff2-4093-ab2d-9feaeb4a66ff",
                             "leftValue": "={{ $json.hasBookingConfirmation }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "false",
+                                "singleValue": true
+                            }
+                        },
+                        {
+                            "id": "b0cf806c-294d-4bc5-a8a0-02724966e1e1",
+                            "leftValue": "={{ $json.hasQuote }}",
                             "rightValue": "",
                             "operator": {
                                 "type": "boolean",
@@ -2147,25 +1954,6 @@
         },
         {
             "parameters": {
-                "rule": {
-                    "interval": [
-                        {
-                            "triggerAtHour": 10
-                        }
-                    ]
-                }
-            },
-            "id": "3645c5b9-7f34-401a-bcd9-069e757b1a46",
-            "name": "Every Day at 10 AM",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
-            "position": [
-                1472,
-                5888
-            ]
-        },
-        {
-            "parameters": {
                 "operation": "executeQuery",
                 "query": "SELECT c.phone_number, \n       (SELECT session_id FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 1) as session_id,\n       (SELECT string_agg('Client: ' || COALESCE(sub.user_message, '') || CHR(10) || 'AI: ' || COALESCE(sub.bot_reply, ''), CHR(10) || '---' || CHR(10)) \n        FROM (SELECT user_message, bot_reply FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 5) sub\n       ) as chat_history\nFROM client c\nWHERE c.lead_score >= 20 \n  AND c.client_type = 'unregistered'\n  AND c.updated_at < NOW() - INTERVAL '24 hours'\n  AND c.updated_at > NOW() - INTERVAL '24 hours';",
                 "options": {}
@@ -2175,8 +1963,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1680,
-                5888
+                1696,
+                5920
             ],
             "credentials": {
                 "postgres": {
@@ -2195,8 +1983,251 @@
             "type": "@n8n/n8n-nodes-langchain.chainLlm",
             "typeVersion": 1.4,
             "position": [
-                1856,
-                5872
+                1872,
+                5904
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET updated_at = NOW()\nWHERE phone_number = '{{ $('Find Ghost Leads (24h-48h)').item.json.phone_number }}';\n",
+                "options": {}
+            },
+            "id": "b87d9c5f-4da9-4002-9512-b2e40959c30b",
+            "name": "Update Last Touch",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2352,
+                5904
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Re-connecting with ghost leads",
+                "height": 384,
+                "width": 1104,
+                "color": "#E2621D"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                1440,
+                5808
+            ],
+            "typeVersion": 1,
+            "id": "3f2633ee-a456-44ee-80da-d381bc41b3f0",
+            "name": "Sticky Note6"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET quote_sent_at = NOW(),\n    updated_at = NOW()\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
+                "options": {}
+            },
+            "id": "1e1ebadf-0b91-4518-b3fa-7802451d4c90",
+            "name": "Log Quote Timestamp",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1696,
+                5232
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "cddbb5fa-4039-409b-8267-136dc8ce8f7a",
+                            "leftValue": "={{ $json.hasQuote }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                1504,
+                5072
+            ],
+            "id": "8562245b-ae33-43e4-b973-997020cbf508",
+            "name": "If Quote Intent"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET quote_sent_at = NULL\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
+                "options": {}
+            },
+            "id": "239fba19-5032-4449-a5ff-d5bf42e30bc0",
+            "name": "Kill Quote Followup",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                400,
+                5520
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT c.phone_number, \n       (SELECT session_id FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 1) as session_id,\n       (SELECT string_agg('Client: ' || COALESCE(sub.user_message, '') || CHR(10) || 'AI: ' || COALESCE(sub.bot_reply, ''), CHR(10) || '---' || CHR(10)) \n        FROM (SELECT user_message, bot_reply FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 5) sub\n       ) as chat_history\nFROM client c\nWHERE c.quote_sent_at IS NOT NULL\n  AND c.quote_sent_at < NOW() - INTERVAL '3 days'\n  AND c.quote_sent_at > NOW() - INTERVAL '4 days'\n  AND c.updated_at < NOW() - INTERVAL '48 hours';",
+                "options": {}
+            },
+            "id": "222adebb-e278-4a8d-9bc8-219207f2b5f8",
+            "name": "Find 3-Day Old Quotes",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1712,
+                6320
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=You are a highly professional B2B sales assistant. You sent a quote to this client exactly 3 days ago. They have not ordered yet.\n\nHere is the recent chat history showing what they were quoted for:\n{{ $json.chat_history }}\n\nDraft a highly personalized, 1-sentence WhatsApp message to follow up. \nRule 1: Specifically mention the product/service they were quoted for.\nRule 2: Do NOT be pushy. Ask if they have any questions or need adjustments to the quote.\nRule 3: Output ONLY the exact message text, nothing else."
+            },
+            "id": "d9cf83d4-148a-4871-9162-b504c0914b48",
+            "name": "AI Drafts Follow-up",
+            "type": "@n8n/n8n-nodes-langchain.chainLlm",
+            "typeVersion": 1.4,
+            "position": [
+                1936,
+                6320
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE client \nSET quote_sent_at = NULL,\n    updated_at = NOW()\nWHERE phone_number = '{{ $json.phone_number }}';",
+                "options": {}
+            },
+            "id": "84e3b3bc-1c40-49f9-9284-07979ed81859",
+            "name": "Reset Tracker",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2432,
+                6320
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Follow-up after quote submission",
+                "height": 400,
+                "width": 1184,
+                "color": "#CC2424"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                1440,
+                6240
+            ],
+            "typeVersion": 1,
+            "id": "e77e97da-dd0f-4976-b133-37c8ed9cb677",
+            "name": "Sticky Note7"
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 15
+                        }
+                    ]
+                }
+            },
+            "id": "d07fc978-406c-47d7-b5d6-0b647d3642a8",
+            "name": "Meeting Reminder Schedule(15mins)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1488,
+                5584
+            ]
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "id": "3645c5b9-7f34-401a-bcd9-069e757b1a46",
+            "name": "Ghost Leads Reminder Scheduler(10AM)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1488,
+                5920
+            ]
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "id": "e2cdd874-af41-4881-bc84-777f0495816a",
+            "name": "Quote Follow-up Reminder(10AM)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1488,
+                6320
             ]
         },
         {
@@ -2205,12 +2236,32 @@
                 "options": {}
             },
             "id": "1c1ec169-9b08-47dc-9b14-79efe5610b13",
-            "name": "Google Gemini Model",
+            "name": "Ghost Leads Response Model",
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1,
             "position": [
-                1952,
-                6016
+                1968,
+                6048
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-3.6-flash",
+                "options": {}
+            },
+            "id": "5821c70d-a5e2-4bd9-a580-52527b4d78d6",
+            "name": "Quote Follow-up Response Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                1904,
+                6496
             ],
             "credentials": {
                 "googlePalmApi": {
@@ -2240,12 +2291,255 @@
                 "options": {}
             },
             "id": "881464a6-17a8-4363-9ba1-966c3f6e6651",
-            "name": "Send via OpenWA",
+            "name": "Ghost Leads Response via OpenWA",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2144,
-                5872
+                2160,
+                5904
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $json.session_id || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Find 3-Day Old Quotes').item.json.phone_number + \"@c.us\", \"text\": $json.text } }}",
+                "options": {}
+            },
+            "id": "c6d76836-0301-40f6-b763-51280f418a58",
+            "name": "Quote Follow-up Response via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2240,
+                6320
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "path": "pay-test",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "8559da77-aab3-4fe3-a7f4-81b59b14ac19",
+            "name": "Payment Link Clicked",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                1488,
+                6768
+            ],
+            "webhookId": "04b8a87f-0537-4156-82f2-d24802f8bb48"
+        },
+        {
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "==<!DOCTYPE html>\n<html>\n<head>\n  <title>Secure Checkout</title>\n  <style>\n    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f6f8; margin: 0; }\n    .card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }\n    .price { font-size: 2.5rem; color: #111827; margin: 10px 0; font-weight: bold; }\n    .btn { background: #22c55e; color: white; border: none; padding: 14px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 20px; font-weight: bold; }\n    .btn:hover { background: #16a34a; }\n    .summary { text-align: left; background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 14px; color: #4b5563;}\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h2>💳 Order Checkout</h2>\n    <div class=\"price\">৳{{ $json.query.amount || '0.00' }}</div>\n    \n    <div class=\"summary\">\n      <strong>Order ID:</strong> #{{ $json.query.order_id }}<br>\n      <strong>Status:</strong> Pending Payment\n    </div>\n\n    <form action=\"http://localhost:5678/webhook-test/pay-confirm\" method=\"POST\">\n      <input type=\"hidden\" name=\"order_id\" value=\"{{ $json.query.order_id }}\">\n      <input type=\"hidden\" name=\"phone\" value=\"{{ $json.query.phone }}\">\n      <button type=\"submit\" class=\"btn\">Complete Secure Payment</button>\n    </form>\n  </div>\n</body>\n</html>",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Content-Type",
+                                "value": "text/html"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "28cdd08f-ad7c-44e1-b42e-1cf939e7ba42",
+            "name": "Serve Payment Page",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1712,
+                6768
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "pay-confirm",
+                "options": {}
+            },
+            "id": "5f502542-b3b9-40f3-83f5-27d541021274",
+            "name": "Payment Confirmed Callback",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                1488,
+                6976
+            ],
+            "webhookId": "cb39462d-9050-4464-a581-44b9327085cb"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE orders \nSET payment_status = 'PAID',\n    order_status = 'Processing',\n    updated_at = NOW()\nWHERE order_id = '{{ $json.body.order_id }}';\n",
+                "options": {}
+            },
+            "id": "ebc22ecd-2369-462a-ac03-a5ac82140445",
+            "name": "Mark Order as Paid",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1712,
+                6976
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Payment Confirmed Callback').item.json.body.phone + \"@c.us\",\n  \"text\": \"✅ *Payment Received!*\\n\\nWe have received your payment for Order *#\" + $('Payment Confirmed Callback').item.json.body.order_id + \"*. Your order is now officially being processed!\"\n} }}",
+                "options": {}
+            },
+            "id": "2c2da24c-240a-4466-9358-ee760bd63e6f",
+            "name": "Send Paid Receipt via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1936,
+                6976
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "fe58c178-9d9f-4aa0-82b1-84a2f6d10ad8",
+            "name": "Queue Sync Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                1488,
+                4256
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT id, phone_number, extracted_json FROM order_intake_queue WHERE processed = FALSE LIMIT 50;",
+                "options": {}
+            },
+            "id": "177bb337-3380-401f-b847-01f0fbb4193b",
+            "name": "Fetch Unprocessed Queue",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1712,
+                4256
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "WITH calculated AS (\n  SELECT \n    '{{ $json.phone_number }}' AS phone_number,\n    '{{ $json.extracted_json.order_id }}' AS order_id,\n    '{{ $json.extracted_json.product_name }}' AS product_name,\n    {{ $json.extracted_json.quantity || 1 }}::numeric AS quantity,\n    {{ $json.extracted_json.unit_price || 0 }}::numeric AS unit_price,\n    {{ $json.extracted_json.discount_prcnt || 0 }}::numeric AS discount_prcnt\n)\nINSERT INTO orders (\n  phone_number, order_id, product_name, quantity, \n  unit_price, discount_prcnt, discounted_price, total_price, \n  order_status, payment_status, payment_link, order_date, updated_at\n)\nSELECT\n  phone_number,\n  order_id,\n  product_name,\n  quantity,\n  unit_price,\n  discount_prcnt,\n  -- Discounted price calculated from base total (unit_price * quantity) and discount_prcnt\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS discounted_price,\n  -- Final total_price matching the discounted price\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS total_price,\n  'Pending Payment',\n  'UNPAID',\n  'http://localhost:5678/webhook-test/pay-test?order_id=' || order_id || '&phone=' || phone_number || '&amount=' || ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2),\n  CURRENT_DATE,\n  now()\nFROM calculated\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  unit_price = EXCLUDED.unit_price,\n  discount_prcnt = EXCLUDED.discount_prcnt,\n  discounted_price = EXCLUDED.discounted_price,\n  total_price = EXCLUDED.total_price,\n  payment_link = EXCLUDED.payment_link,\n  updated_at = now();",
+                "options": {}
+            },
+            "id": "5eab180a-8574-400e-9053-18765565c030",
+            "name": "Process & Sync to Orders Table",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1936,
+                4256
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Fetch Unprocessed Queue').item.json.phone_number + \"@c.us\",\n  \"text\": \"✅ *Your order is confirmed!*\\n\\nWe are preparing your \" + $('Fetch Unprocessed Queue').item.json.extracted_json.product_name + \".\\n\\n💳 *Complete your payment securely here:*\\nhttp://localhost:5678/webhook-test/pay-test?order_id=\" + $('Fetch Unprocessed Queue').item.json.extracted_json.order_id + \"&phone=\" + $('Fetch Unprocessed Queue').item.json.phone_number\n} }}",
+                "options": {}
+            },
+            "id": "744b8e11-3837-4941-b05a-8b8617501cad",
+            "name": "Send Order & Payment Link (OpenWA)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                2160,
+                4256
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -2257,16 +2551,16 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET updated_at = NOW()\nWHERE phone_number = '{{ $('Find Ghost Leads (24h-48h)').item.json.phone_number }}';\n",
+                "query": "UPDATE order_intake_queue SET processed = TRUE WHERE id = {{ $('Fetch Unprocessed Queue').item.json.id }};",
                 "options": {}
             },
-            "id": "b87d9c5f-4da9-4002-9512-b2e40959c30b",
-            "name": "Update Last Touch",
+            "id": "243bb126-fcb9-41cd-b2f7-ca0b592303e3",
+            "name": "Mark Queue Rows as Processed",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2304,
-                5872
+                2368,
+                4256
             ],
             "credentials": {
                 "postgres": {
@@ -2277,22 +2571,140 @@
         },
         {
             "parameters": {
-                "content": "# Re-connecting with ghost leads",
-                "height": 368,
-                "width": 1040,
-                "color": "#E2621D"
+                "content": "# Payment processing",
+                "height": 480,
+                "width": 736,
+                "color": "#262DF2"
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
                 1440,
-                5792
+                6688
             ],
             "typeVersion": 1,
-            "id": "3f2633ee-a456-44ee-80da-d381bc41b3f0",
-            "name": "Sticky Note6"
+            "id": "06d6677a-e320-4363-aa6e-fcfbf5e5ee2b",
+            "name": "Sticky Note8"
+        },
+        {
+            "parameters": {
+                "jsCode": "// 1. Fetch data from the Parse Order Intent node\nconst parseIntentItem = $('Parse Order Intent').first().json;\nconst quoteData = parseIntentItem.quoteData || parseIntentItem || {};\n\n// 2. Extract numeric parameters safely with defaults\nconst quantity = Number(quoteData.quantity) || 1;\nconst unitPrice = Number(quoteData.unit_price) || 0;\nconst discountPrcnt = Number(quoteData.discount_prcnt) || 0;\n\n// 3. Calculate Prices\nconst subtotal = unitPrice * quantity;\nconst discountAmount = subtotal * (discountPrcnt / 100);\nconst discountedPrice = Math.round((subtotal - discountAmount) * 100) / 100;\n\n// 4. Output complete merged object for n8n\nreturn {\n  json: {\n    ...quoteData,\n    discount_prcnt: discountPrcnt,\n    discounted_price: discountedPrice,\n    total_price: subtotal\n  }\n};"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1904,
+                5056
+            ],
+            "id": "2f75a672-2adc-4d1d-bf13-71c5d5d6388b",
+            "name": "assorted data"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].binary && items[i].binary.data) {\n    // Read the PDF from n8n's filesystem memory\n    const buffer = await this.helpers.getBinaryDataBuffer(i, 'data');\n    // Convert to base64 and attach to JSON\n    items[i].json.pdf_base64 = buffer.toString('base64');\n  }\n}\n\nreturn items;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2384,
+                5056
+            ],
+            "id": "79beb6e4-1195-4c06-8054-d9f3f27a4780",
+            "name": "PDF Insertion"
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "documentURL": "={{ $('Duplicate Template (Google Drive)').item.json.id }}",
+                "actionsUi": {
+                    "actionFields": [
+                        {
+                            "action": "replaceAll",
+                            "text": "{{company_name}}",
+                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.company_name }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{product_name}}",
+                            "replaceText": "={{ $('Parse Order Intent').first().json.quoteData.product_name }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{quantity}}",
+                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.quantity) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{unit_price}}",
+                            "replaceText": "={{ String($('Parse Order Intent').first().json.quoteData.unit_price) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{discounted_price}}",
+                            "replaceText": "={{ String($json.discounted_price) }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{date}}",
+                            "replaceText": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}"
+                        },
+                        {
+                            "action": "replaceAll",
+                            "text": "{{discount_prcnt}}",
+                            "replaceText": "={{ String($json.discount_prcnt) }}"
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.googleDocs",
+            "typeVersion": 2,
+            "position": [
+                2064,
+                5056
+            ],
+            "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
+            "name": "Update Template",
+            "credentials": {
+                "googleDocsOAuth2Api": {
+                    "id": "UmMv8ac5qlJl0BE9",
+                    "name": "Google Docs account"
+                }
+            }
         }
     ],
-    "pinData": {},
+    "pinData": {
+        "Parse Order Intent": [
+            {
+                "json": {
+                    "output": "I've updated your quote to **1,000 units** of the **Organic Cotton Onesie** for **Stark Textiles**. \n\nWith your **15% volume discount** applied, the unit price drops from $24.99 to **$21.24**, bringing your updated total to **$21,241.50**. Your official proforma PDF quote has been generated!",
+                    "hasOrder": false,
+                    "orderData": {},
+                    "hasRegister": false,
+                    "registerData": {},
+                    "hasQuote": true,
+                    "quoteData": {
+                        "company_name": "Stark Textiles",
+                        "product_name": "Organic Cotton Onesie",
+                        "quantity": 1000,
+                        "unit_price": 24.99,
+                        "discount_prcnt": 15
+                    },
+                    "hasMeetingIntent": false,
+                    "hasBookingConfirmation": false,
+                    "meetingData": {},
+                    "hasCancellation": false,
+                    "hasReschedule": false,
+                    "targetClientName": "",
+                    "rescheduleData": {},
+                    "hasBuyingIntent": false,
+                    "from": "8801345863767@c.us",
+                    "sessionId": "826775a3-abd6-4419-9203-a65c6ab5717c"
+                },
+                "pairedItem": {
+                    "item": 0
+                }
+            }
+        ]
+    },
     "connections": {
         "Send Reply via OpenWA": {
             "main": [
@@ -2308,11 +2720,6 @@
         "Parse Order Intent": {
             "main": [
                 [
-                    {
-                        "node": "If",
-                        "type": "main",
-                        "index": 0
-                    },
                     {
                         "node": "If Order Intent",
                         "type": "main",
@@ -2345,6 +2752,11 @@
                     },
                     {
                         "node": "If Buying Intent",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "If Quote Intent",
                         "type": "main",
                         "index": 0
                     }
@@ -2545,39 +2957,6 @@
                 [
                     {
                         "node": "Route Incoming Event",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Queue Sync Trigger": {
-            "main": [
-                [
-                    {
-                        "node": "Fetch Unprocessed Queue",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Fetch Unprocessed Queue": {
-            "main": [
-                [
-                    {
-                        "node": "Process & Sync to Orders Table",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Process & Sync to Orders Table": {
-            "main": [
-                [
-                    {
-                        "node": "Mark Queue Rows as Processed",
                         "type": "main",
                         "index": 0
                     }
@@ -2789,33 +3168,11 @@
                 ]
             ]
         },
-        "If": {
-            "main": [
-                [
-                    {
-                        "node": "Duplicate Template (Google Drive)",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Duplicate Template (Google Drive)": {
             "main": [
                 [
                     {
-                        "node": "Update a document",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Update a document": {
-            "main": [
-                [
-                    {
-                        "node": "Download as PDF",
+                        "node": "assorted data",
                         "type": "main",
                         "index": 0
                     }
@@ -2826,23 +3183,12 @@
             "main": [
                 [
                     {
-                        "node": "Code in JavaScript",
+                        "node": "PDF Insertion",
                         "type": "main",
                         "index": 0
                     },
                     {
                         "node": "Create Follow-up Reminder",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Code in JavaScript": {
-            "main": [
-                [
-                    {
-                        "node": "Send PDF via OpenWA",
                         "type": "main",
                         "index": 0
                     }
@@ -2859,6 +3205,11 @@
                     },
                     {
                         "node": "Conditional Staging Insert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Kill Quote Followup",
                         "type": "main",
                         "index": 0
                     }
@@ -2982,17 +3333,6 @@
                 ]
             ]
         },
-        "Every 15 Minutes": {
-            "main": [
-                [
-                    {
-                        "node": "Check Upcoming Meetings (Next 2h)",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Check Upcoming Meetings (Next 2h)": {
             "main": [
                 [
@@ -3059,17 +3399,6 @@
                 ]
             ]
         },
-        "Every Day at 10 AM": {
-            "main": [
-                [
-                    {
-                        "node": "Find Ghost Leads (24h-48h)",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Find Ghost Leads (24h-48h)": {
             "main": [
                 [
@@ -3081,7 +3410,89 @@
                 ]
             ]
         },
-        "Google Gemini Model": {
+        "AI Drafts Re-engagement": {
+            "main": [
+                [
+                    {
+                        "node": "Ghost Leads Response via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "If Quote Intent": {
+            "main": [
+                [
+                    {
+                        "node": "Duplicate Template (Google Drive)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Log Quote Timestamp",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Find 3-Day Old Quotes": {
+            "main": [
+                [
+                    {
+                        "node": "AI Drafts Follow-up",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Drafts Follow-up": {
+            "main": [
+                [
+                    {
+                        "node": "Quote Follow-up Response via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Meeting Reminder Schedule(15mins)": {
+            "main": [
+                [
+                    {
+                        "node": "Check Upcoming Meetings (Next 2h)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ghost Leads Reminder Scheduler(10AM)": {
+            "main": [
+                [
+                    {
+                        "node": "Find Ghost Leads (24h-48h)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Quote Follow-up Reminder(10AM)": {
+            "main": [
+                [
+                    {
+                        "node": "Find 3-Day Old Quotes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ghost Leads Response Model": {
             "ai_languageModel": [
                 [
                     {
@@ -3092,22 +3503,143 @@
                 ]
             ]
         },
-        "AI Drafts Re-engagement": {
+        "Quote Follow-up Response Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Drafts Follow-up",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ghost Leads Response via OpenWA": {
             "main": [
                 [
                     {
-                        "node": "Send via OpenWA",
+                        "node": "Update Last Touch",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Send via OpenWA": {
+        "Quote Follow-up Response via OpenWA": {
             "main": [
                 [
                     {
-                        "node": "Update Last Touch",
+                        "node": "Reset Tracker",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Link Clicked": {
+            "main": [
+                [
+                    {
+                        "node": "Serve Payment Page",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Confirmed Callback": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Order as Paid",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Order as Paid": {
+            "main": [
+                [
+                    {
+                        "node": "Send Paid Receipt via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Queue Sync Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Unprocessed Queue",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Unprocessed Queue": {
+            "main": [
+                [
+                    {
+                        "node": "Process & Sync to Orders Table",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process & Sync to Orders Table": {
+            "main": [
+                [
+                    {
+                        "node": "Send Order & Payment Link (OpenWA)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Order & Payment Link (OpenWA)": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Queue Rows as Processed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "PDF Insertion": {
+            "main": [
+                [
+                    {
+                        "node": "Send PDF via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Template": {
+            "main": [
+                [
+                    {
+                        "node": "Download as PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "assorted data": {
+            "main": [
+                [
+                    {
+                        "node": "Update Template",
                         "type": "main",
                         "index": 0
                     }
@@ -3120,7 +3652,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "4989682e-5fb2-4375-bdb1-26b81eae43e4",
+    "versionId": "85bfef8f-dc20-4622-80eb-4b2c24ee3f32",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
