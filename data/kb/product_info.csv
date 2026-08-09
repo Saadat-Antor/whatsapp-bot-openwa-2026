@@ -1,4 +1,24 @@
-ProductID,Name,Category,Description,Price,StockStatus
-PROD-001,Organic Cotton Onesie,Apparel,Ultra-soft 100% organic cotton bodysuit for newborns and infants.,24.99,In Stock
-PROD-002,Knitted Baby Beanie,Accessories,Cozy wool-blend knitted beanie perfect for cold weather protection.,14.99,In Stock
-PROD-003,Bamboo Sleep Sack,Bedding,Breathable thermoregulating bamboo fabric sleep sack for toddlers.,39.99,Low Stock
+ProductID,Name,Category,Description,Color,Weight(kg)
+PROD-001,Organic Cotton Onesie,Apparel,Ultra-soft 100% organic cotton bodysuit for newborns and infants.,Brown,0.5
+PROD-002,Knitted Baby Beanie,Accessories,Cozy wool-blend knitted beanie perfect for cold weather protection.,Navi Blue,0.2
+PROD-003,Bamboo Sleep Sack,Bedding,Breathable thermoregulating bamboo fabric sleep sack for toddlers.,Black,1.2
+PROD-004,Muslin Swaddle Blanket,Bedding,"Lightweight, breathable cotton muslin swaddle for newborn comfort.",Sage Green,0.30
+PROD-005,Silicone Baby Bib,Accessories,"Food-grade silicone bib with a deep spill pocket and adjustable neck.",Mustard,0.15
+PROD-006,Fleece Baby Booties,Apparel,"Warm, anti-slip fleece booties with adjustable snaps for toddlers.",Grey,0.10
+PROD-007,Wooden Teething Ring,Accessories,"Natural, non-toxic beechwood teething ring wrapped in organic cotton.",Natural Wood,0.05
+PROD-008,Hooded Baby Towel,Bath,"Ultra-absorbent bamboo terry cloth towel with a cute animal hood.",White,0.40
+PROD-009,Waterproof Changing Pad,Nursery,"Cushioned, easy-to-wipe waterproof pad for diaper changes.",Mint Green,0.60
+PROD-010,Organic Cotton Mittens,Accessories,"Soft, scratch-free mittens to protect newborns from scratching their faces.",Pink,0.05
+PROD-011,Baby Carrier Wrap,Gear,"Ergonomic, stretchy cotton blend wrap carrier for hands-free bonding.",Charcoal,0.70
+PROD-012,Plush Animal Pacifier,Accessories,"Detachable plush toy pacifier holder to keep babies calm and entertained.",Beige,0.10
+PROD-013,Muslin Washcloth Set,Bath,"Pack of 5 extra soft, hypoallergenic washcloths for sensitive baby skin.",Ivory,0.20
+PROD-014,Thermal Baby Romper,Apparel,"Long-sleeve ribbed thermal romper designed for cooler seasons.",Rust,0.35
+PROD-015,Knitted Baby Cardigan,Apparel,"Chunky knit cotton cardigan with wooden buttons for a classic look.",Cream,0.40
+PROD-016,Portable Changing Mat,Accessories,"Compact, foldable changing mat with inner pockets for wipes and diapers.",Black,0.25
+PROD-017,Bamboo Nursing Pads,Accessories,"Reusable, ultra-absorbent bamboo nursing pads for nursing mothers.",White,0.10
+PROD-018,Silicone Suction Bowl,Feeding,"Spill-proof silicone feeding bowl that firmly suctions to highchair trays.",Peach,0.30
+PROD-019,Velvet Baby Turban,Accessories,"Soft, stretchy velvet turban knot hat for a stylish and snug fit.",Maroon,0.10
+PROD-020,Quilted Play Mat,Nursery,"Large, padded hexagonal play mat perfect for tummy time and crawling.",Terracotta,1.50
+PROD-021,Flannel Crib Sheet,Bedding,"Warm and cozy 100% cotton flannel fitted sheet for standard cribs.",Sky Blue,0.45
+PROD-022,Eco-Friendly Diaper Caddy,Nursery,"Sturdy felt organizer tote with removable compartments for nursery essentials.",Light Grey,0.80
+PROD-023,Portable Sleep Soother,Nursery,"White noise machine with soft night light that easily attaches to strollers.",White,0.25
