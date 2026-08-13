@@ -40,7 +40,7 @@ services:
       DATABASE_HOST: "sms-agency-server-postgres-1"
       DATABASE_PORT: "5432"
       DATABASE_USERNAME: "openwa_bot_user"
-      DATABASE_PASSWORD: "alien20b"
+      DATABASE_PASSWORD: "20alienb"
       DATABASE_NAME: "openwa_bot_db"
       MCP_ENABLED: "false"
       WEBHOOK_SSRF_PROTECT: "false"
