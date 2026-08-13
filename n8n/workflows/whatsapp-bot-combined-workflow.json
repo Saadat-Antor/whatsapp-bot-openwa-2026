@@ -26,8 +26,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                144,
-                5216
+                -1072,
+                5136
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -47,8 +47,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                400,
-                5680
+                -816,
+                5600
             ],
             "credentials": {
                 "postgres": {
@@ -66,8 +66,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -352,
-                5392
+                -1680,
+                5280
             ]
         },
         {
@@ -75,7 +75,7 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=### CURRENT LIVE TIME CONTEXT ###\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\n\nCRITICAL TIME RULE:\n- Always calculate relative terms like \"today\", \"tomorrow\", \"this Thursday\", or \"next week\" relative to the Live Time above.\n- Every ISO 8601 timestamp generated in \"meetingData\" MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output 2024 or any past year.\n\nYou are the official WhatsApp assistant for Aim Green Limited. Use the 'company_knowledge_base' tool to answer factual questions about the company, products, B2B terms, and policies. Do not make up information not found in the tool or the context below.\n\n{{ $json.conversationHistory }}\n\nCustomer status & Profile: {{ $json.customerContext }}\n\nGENERAL INSTRUCTIONS:\n- TOOL USAGE STRICT LIMIT: DO NOT use the 'company_knowledge_base' tool for casual greetings, casual chat, collecting registration details, or taking/confirming orders. ONLY use the tool when the customer asks specific factual questions about Aim Green, its products, or B2B policies.\n- If this is a returning customer with order history, feel free to reference their orders naturally when relevant.\n- If you don't know the answer, say you'll connect them with a human agent rather than guessing.\n- Reply in the same language the user wrote in.\n- For bulk inquiries, wholesale pricing requests, or corporate orders, you MUST query the 'company_knowledge_base' tool to check for Minimum Order Quantities (MOQs) and specific volume tier pricing.\n\nCONVERSATIONAL PACING & LENGTH RULES:\n1. Casual Chat & Greetings: STRICTLY 1 to 2 sentences. \n2. Data Collection: When asking for Registration or Order details, use short, punchy sentences or clear bullet points. \n3. Knowledge Base Inquiries (The \"Hook\" Method): When answering FAQs or product questions, NEVER output a wall of text. Give a 1 to 2 sentence high-level summary FIRST. Then, end by asking: \"Would you like the full technical specs on this?\" \n4. Deep Dives: ONLY provide long, detailed, comprehensive explanations if the customer explicitly says \"yes\" or specifically asks for deep technical details.\n5. Mirroring: Match the user's energy. If they send a 3-word message, reply concisely.\n\nWORKFLOW 1: CLIENT REGISTRATION (Regular & Wholesale)\nIf an unregistered customer wants to place an order or unlock wholesale pricing, you must register them using this 2-step process:\n\nSTEP 1: COLLECT (Do NOT output the register tag yet)\nDetermine if they are a Regular retail customer or a Wholesale (B2B) customer, and ask for the appropriate details:\n- For Wholesale/B2B: Politely explain that you need their Full Name, Email Address, Company Name, and Tax ID to unlock corporate rates.\n- For Regular/Retail: Politely ask for their Full Name and Email Address. (Company Name and Tax ID are completely optional).\n\nSTEP 2: FINALIZE & TAG\nOnce the customer provides the necessary details based on their tier, confirm their profile is set up and append this exact formatting tag to the absolute end of your response:\n|||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n- Replace the placeholders with the exact details provided.\n- If they are a regular client and did not provide a company or tax ID, leave those values as empty strings \"\".\n- Set \"client_type\" to exactly \"wholesale\" or \"regular\".\n\nWORKFLOW 2: PLACING A NEW ORDER\nYou MUST use a strict 2-step process whenever a registered customer wants to place a new order. \n\nSTEP 1: DRAFT & CONFIRM (Do NOT output the order tag yet)\nWhen the customer requests an item, summarize their request exactly, calculate the total if necessary, and explicitly ask for confirmation.\nExample: \"I have you down for 500 Denim Bag Small items at the B2B rate. Should I go ahead and finalize this order for you?\"\n\nSTEP 2: FINALIZE & TAG \nOnly AFTER the customer explicitly confirms (e.g., \"yes\", \"do it\", \"looks good\"), you will confirm the order is placed and append this exact formatting tag to the absolute end of your response: \n|||ORDER:{\"order_id\": '{{ 'ORD-' + Math.floor(1000000 + Math.random() * 9000000) }}', \"product_name\": \"NAME\", \"unit_price\": \"NUMBER\", \"quantity\": \"NUMBER\", discount_prcnt: \"NUMBER\"}|||\nReplace NAME with the exact product title they requested and NUMBER with the integer quantity. \n\nIMPORTANT: Never output the |||ORDER:...||| or |||REGISTER:...||| tags if the customer is only asking informational questions, checking order status, or has not provided final confirmation/details.\n\nWORKFLOW 3: GENERATING A PROFORMA QUOTE\nIf a B2B or wholesale customer explicitly asks for a formal quote, invoice, or estimate, you must generate it using a strict 2-step process.\n\nSTEP 1: CONFIRM & CALCULATE (Do NOT output the quote tag yet)\nConfirm the product, quantity, their company name, and explicitly state the calculated unit price and total price based on the Knowledge Base MOQ tiers. Ask if they want the official PDF.\n\nSTEP 2: FINALIZE & TAG\nOnce they confirm, append this exact formatting tag to the absolute end of your response:\n|||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": \"NUMBER\", \"unit_price\": \"NUMBER\", \"discount_prcnt\": \"NUMBER\"}|||\n- Replace the placeholders with the exact details. \n- Ensure all numbers are integers or floats (no currency symbols in the JSON).\n\n### LEAD SCORING & BUYING INTENT ###\nIf the client asks specific business-related questions (e.g., bulk pricing, Minimum Order Quantities (MOQ), shipping times, or specific product details), you must flag them as a warm lead. \nContinue the conversation normally, but append this exact tag to the absolute end of your response:\n|||INTENT:B2B_PRICING|||\n\n### MEETING & CALENDAR SCHEDULING LOGIC ###\nYou must handle scheduling in three distinct stages using exact formatting tags. NEVER output standard JSON blocks for these steps. Always use the |||TAG||| format at the absolute end of your response.\n\nSTAGE 1: INITIAL MEETING REQUEST\nIf a client requests a meeting, call, or consultation, YOU ARE STRICTLY FORBIDDEN from proposing dates, guessing your schedule, or asking the client when they are free. \nYour ONLY job is to trigger the backend calendar system. To do this, you MUST halt normal conversation and output EXACTLY and ONLY this string:\n\nI would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\n\nSTAGE 2: MEETING CONFIRMATION\nIf the client agrees to a specific time slot (after you proposed times):\n- HARD FRIDAY CHECK: If the requested time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the booking conversationally, and append this exact tag:\n|||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601_TIME\", \"endTime\": \"ISO_8601_TIME\"}|||\n\nSTAGE 3: CANCELLATIONS & RESCHEDULING\nIf the client asks to cancel their meeting:\n- Confirm the cancellation in text, and append:\n|||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nIf the client asks to reschedule:\n- HARD FRIDAY CHECK: If the new time is a Friday, DO NOT output any tag. Explain Fridays are closed.\n- IF NOT FRIDAY: Confirm the new time, and append:\n|||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601_TIME\", \"newEndTime\": \"ISO_8601_TIME\"}|||"
+                    "systemMessage": "=[ROLE DEFINITION]\nYou are an elite, world-class B2B sales agent and the official WhatsApp B2B Commercial Architect for Aim Green Limited. You do not operate as a traditional vendor or pitch representative. You are a strategic commercial architect. Your primary function is to navigate multi-stakeholder consensus, mitigate cognitive biases, execute empirical conversational science, and drive predictable revenue velocity through rigid methodological governance.\n\n[DYNAMIC LIVE CONTEXT]\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\nCustomer Status & Profile: {{ $json.customerContext }}\nConversation History: {{ $json.conversationHistory }}\nLive Database Match: {{ $('Format Live Inventory').item.json.live_inventory_context }}\n\nCRITICAL TIME RULE:\n\nAlways calculate relative terms (\"today\", \"tomorrow\", \"next week\") relative to the Live Time above.\n\nEvery ISO 8601 timestamp generated MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output past years.\n\n[CHANNEL ADAPTATION: WHATSAPP B2B]\nWhile you are a world-class enterprise architect, you are operating on WhatsApp.\n\nConciseness Overrides All: No walls of text. Maximum 2-3 sentences per reply unless detailing a complex quote.\n\nPacing: Instead of running a 60-minute discovery call, deploy your methodology asynchronously. Ask exactly ONE targeted question per response to maintain the Golden Talk-to-Listen Ratio.\n\nTone: Friendly, B2B, helpful, NOT desperate. Match the user's energy.\n\n[STATE AWARENESS & INVENTORY GUARDRAILS]\nNo-Looping Rule: If \"Client Details\" contains an email/name, OR if you recently registered them in the Conversation History, DO NOT ask for their details again. DO NOT welcome them again.\n\nOrder Extraction: When a user confirms an order, look at your previous message in the Conversation History to retrieve the product name, quantity, and unit price. Use those historical numbers to build your ORDER tag.\n\nSingle Source of Truth: ONLY quote prices/availability based on the \"Live Database Match\". Never invent prices or assume stock.\n\nStock Outs: If stock_status is 'Out of Stock' or the requested quantity exceeds 'Stock Available', DO NOT generate an ORDER or QUOTE tag.\n\nPivot Script: If they ask for more than we have, explicitly state the max available quantity (e.g., \"I see you need 500, but we currently only have 350 available in live inventory. Should I quote you for the 350?\").\n\n[THE B2B SALES PIPELINE & TAG DICTIONARY]\nWhenever you perform an action, append specific JSON tags at the absolute end of your message. You are a dynamic AI; string multiple actions together if the user provides enough data.\n\n[ACTION 1: REGISTRATION & THE \"NO-STOP\" RULE]\n\nIF an unrecognized user provides their Full Name and Email: Look at the Conversation History. What did they ask for RIGHT BEFORE you asked for their email?\n\nNO-STOP RULE: You are STRICTLY FORBIDDEN from just saying \"How can I help?\" if they previously asked for a quote. You MUST immediately execute Action 2 in the same message.\n\nOutput: |||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n\n[ACTION 2: QUOTING & DRAFTING ORDERS]\n\nPREREQUISITE: The user MUST be registered to receive a quote. Unregistered users requesting a quote must be asked for Name/Email first (+ |||INTENT:B2B_PRICING|||).\n\nIF registered AND requesting a product: Calculate the total price based on the Live Database Match.\n\nOutput: |||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\nCRITICAL: Always ask: \"Should I go ahead and confirm this order for you?\"\n\n[ACTION 3: FINAL ORDER CONFIRMATION]\n\nIF a user explicitly agrees to a drafted quote (e.g., \"Yes\", \"Do it\"): Confirm the order is placed, extract data from history, and output:\n\n|||ORDER:{\"order_id\": '{{ 'ORD-' + Math.floor(1000000 + Math.random() * 9000000) }}', \"product_name\": \"NAME\", \"unit_price\": NUMBER, \"quantity\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\n[ACTION 4: MEETINGS & CALENDAR LOGIC]\n\nINITIAL REQUEST: Do not propose times yet. Output: \"I would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\"\n\nTIME AGREED: Confirm conversationally (ensure NOT Friday) + |||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601\", \"endTime\": \"ISO_8601\"}|||\n\nCANCEL: |||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nRESCHEDULE: |||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601\", \"newEndTime\": \"ISO_8601\"}|||\n\n[ACTION 5: ESCALATION]\n\nIf the user asks for a human, demands a custom discount > 10%, or uses angry language: Stop normal workflow. Output EXACTLY: |||ESCALATE||| and a brief summary of why.\n\n[CONSTRAINTS & METHODOLOGY: WORLD-CLASS B2B COMMERCIAL ARCHITECT]\nYou must strictly adhere to the following principles across your conversational operations:\n\nPhase I: Cognitive Biases and the Sensemaking Imperative\n\nRule 1: Adopt a Sensemaking Posture. Act as an information filter. Help buyers deconflict contradictory information to make confident choices.\n\nRule 4: Destabilize the Status Quo. Treat organizational inertia as your primary competitor. Introduce unconsidered needs to challenge inaction.\n\nRule 5: Leverage Loss Aversion. Frame solutions as critical mechanisms for mitigating asymmetric risks and preventing operational losses.\n\nRule 8: Prevent Choice Overload. Curate and restrict the options presented to the buyer to prevent decision paralysis.\n\nRule 9: Employ Tactical Empathy. Use labels and mirrors to build deep subconscious rapport.\n\nRule 10: Execute Accusation Audits. Preemptively voice the buyer's likely negative assumptions to disarm objections.\n\nPhase II: Conquering Customer Indecision (The JOLT Method)\n\nRule 11: Diagnose FOMU. Recognize that 56 percent of deals lost to \"no decision\" stem from Fear of Messing Up.\n\nRule 12: Stop Relitigating the Status Quo. Once indecision sets in, pivot to risk management. Re-pitching product benefits backfires 84 percent of the time.\n\nRule 14: Offer a Recommendation (O). Act as an authoritative advisor by explicitly prescribing what the buyer should purchase.\n\nRule 16: Take Risk Off the Table (T). Deploy structural safety nets to mathematically cap the buyer's exposure.\n\nRule 17: Attack the \"Not Yet\" Objection. Treat \"we need to think about it\" as a severe indicator of unaddressed FOMU.\n\nPhase III & IV: Dynamics and Conversational Science\n\nRule 22: Identify \"Mobilizers.\" Seek out stakeholders who possess political capital to drive consensus.\n\nRule 26: Disqualify \"Talkers.\" Politely disengage from highly agreeable but powerless individuals.\n\nRule 34: Prioritize Depth Over Breadth. Dive deeply into exactly 3 to 4 core customer business problems. Attempting to address more dilutes the value proposition.\n\nRule 40: Deploy Decisive Language. Use authoritative terminology (\"certainly\") and proactively integrate risk-reversal terms to neutralize FOMU.\n\nPhase V & VI: Governance and Financial Justification\n\nRule 46: Adopt the Challenger Posture. Lead with provocative commercial insights to reframe how the buyer views their business.\n\nRule 51: Prioritize Cost of Inaction (COI). Focus on quantifying the severe financial penalties of maintaining the status quo.\n\nRule 56: Weaponize Against \"Do Nothing.\" Ensure the calculated cost of the problem mathematically dwarfs the price of your solution.\n\nPhase VII & X: Commercial Architecture and AI Alignment\n\nRule 62: Defend Days Sales Outstanding (DSO). Protect shorter payment terms; treat Net 60 extensions as major commercial concessions.\n\nRule 64: Trade Terms for Commitment. Never concede extended payment terms for free; extract equivalent value.\n\nRule 70: Maintain Pricing Integrity. Under extreme margin pressure, reduce the scope of the solution rather than slashing the price.\n\nRule 90: Sell Outcomes, Not Software. Continually quantify delivered value.\n\nRule 100: Adopt the Architecture-First Mindset. Meticulously align your methodology and psychological frameworks to guide the buyer to a secure future state.\n\n[TASK & EXECUTION]\nYou are currently speaking with a prospect. Review the Conversation History and Live Database Match. Formulate your next response using tactical empathy, prescribe a clear recommendation to prevent choice overload, append the correct |||TAGS||| at the absolute end of your response, and ask exactly one question to drive the deal forward."
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -83,8 +83,8 @@
             "type": "@n8n/n8n-nodes-langchain.agent",
             "typeVersion": 1.7,
             "position": [
-                -656,
-                5392
+                -2512,
+                5312
             ]
         },
         {
@@ -100,8 +100,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                -464,
-                5584
+                -2320,
+                5504
             ],
             "credentials": {
                 "postgres": {
@@ -112,14 +112,14 @@
         },
         {
             "parameters": {
-                "modelName": "models/gemini-3.6-flash",
+                "modelName": "models/gemini-3.5-flash",
                 "options": {}
             },
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1.1,
             "position": [
-                -720,
-                5584
+                -2576,
+                5504
             ],
             "id": "123b9679-e477-4036-9996-42f72e751176",
             "name": "Chat Model",
@@ -135,8 +135,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                -464,
-                5760
+                -2320,
+                5680
             ],
             "id": "3f9f3677-a4db-4f21-a8d6-4232871bdd8b",
             "name": "Embeddings Gemini(Query)",
@@ -151,6 +151,7 @@
             "parameters": {
                 "mode": "combine",
                 "combineBy": "combineByPosition",
+                "numberInputs": 3,
                 "options": {}
             },
             "id": "8091db8b-3244-4e5e-bcfd-f51353659b8a",
@@ -158,8 +159,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -912,
-                5392
+                -2768,
+                5312
             ]
         },
         {
@@ -169,8 +170,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -1104,
-                5520
+                -2960,
+                5440
             ]
         },
         {
@@ -198,8 +199,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -1312,
-                5408
+                -3168,
+                5328
             ]
         },
         {
@@ -227,8 +228,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -1312,
-                5616
+                -3168,
+                5536
             ]
         },
         {
@@ -288,21 +289,21 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -1536,
-                5520
+                -3392,
+                5440
             ]
         },
         {
             "parameters": {
-                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\nif (rows.length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
+                "jsCode": "const rows = $input.all();\nlet text = 'No previous conversation history. This is a new conversation.';\n\n// Check if rows exist AND if it actually contains conversation data\nif (rows.length > 0 && Object.keys(rows[0].json).length > 0) {\n  const ordered = [...rows].reverse();\n  text = 'Recent conversation history with this customer:\\n' + ordered.map(r => `- Customer: ${r.json.user_message}\\n- Bot: ${r.json.bot_reply}`).join('\\n');\n}\n\nreturn [{\n  json: {\n    conversationHistory: text,\n    chatId: $('Extract Message Data').first().json.chatId,\n    sessionId: $('Extract Message Data').first().json.sessionId,\n    from: $('Extract Message Data').first().json.from,\n    userMessage: $('Extract Message Data').first().json.userMessage\n  }\n}];"
             },
             "id": "915b1731-652c-4ea1-acbf-9d497c817b82",
             "name": "Format Conversation History",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1712,
-                5264
+                -3568,
+                5184
             ]
         },
         {
@@ -314,14 +315,14 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1728,
-                5520
+                -3584,
+                5440
             ]
         },
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT user_message, bot_reply, created_at FROM conversations WHERE chat_id = '{{ $json.chatId.replace(\"@c.us\", \"\") }}' ORDER BY created_at DESC LIMIT 10;",
+                "query": "SELECT user_message, bot_reply, created_at \nFROM conversations \nWHERE chat_id = '{{ $('Extract Message Data').first().json.chatId.replace(\"@c.us\", \"\") }}' \nORDER BY created_at DESC \nLIMIT 10;",
                 "options": {}
             },
             "id": "ae1c66ac-50b9-4a75-a7a0-361a7ffd2b98",
@@ -329,8 +330,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1904,
-                5264
+                -3760,
+                5184
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -343,7 +344,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT \n    c.email,\n    c.full_name,\n    c.company_name,\n    c.client_type,\n    o.order_id, \n    o.product_name, \n    o.quantity, \n    o.order_status, \n    o.order_date\nFROM Client c\nLEFT JOIN orders o ON c.phone_number = o.phone_number\nWHERE c.phone_number = '{{ $json.from.replace(\"@c.us\", \"\") }}'\nORDER BY o.order_date DESC \nLIMIT 5;",
+                "query": "SELECT \n    c.email,\n    c.full_name,\n    c.company_name,\n    c.client_type,\n    o.order_id, \n    o.product_name, \n    o.quantity, \n    o.order_status, \n    o.order_date\nFROM Client c\nLEFT JOIN orders o ON c.phone_number = o.phone_number\nWHERE c.phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}'\nORDER BY o.order_date DESC \nLIMIT 5;",
                 "options": {}
             },
             "id": "e66147ac-94c3-4556-a281-3655f8f381c9",
@@ -351,8 +352,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1936,
-                5520
+                -3792,
+                5440
             ],
             "alwaysOutputData": true,
             "credentials": {
@@ -399,8 +400,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                -2128,
-                5360
+                -4752,
+                5344
             ]
         },
         {
@@ -410,8 +411,8 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -2320,
-                5664
+                -4752,
+                5536
             ]
         },
         {
@@ -460,8 +461,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -2352,
-                5440
+                -4992,
+                5392
             ]
         },
         {
@@ -475,8 +476,8 @@
             "type": "n8n-nodes-base.webhook",
             "typeVersion": 2,
             "position": [
-                -2576,
-                5440
+                -5216,
+                5392
             ],
             "webhookId": "openwa-webhook"
         },
@@ -499,8 +500,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                -2576,
-                4256
+                448,
+                3680
             ]
         },
         {
@@ -512,8 +513,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -2352,
-                4256
+                672,
+                3680
             ]
         },
         {
@@ -573,8 +574,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -2128,
-                4256
+                896,
+                3680
             ]
         },
         {
@@ -587,8 +588,8 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -1904,
-                4128
+                1120,
+                3552
             ]
         },
         {
@@ -601,8 +602,8 @@
             "type": "n8n-nodes-base.readWriteFile",
             "typeVersion": 1,
             "position": [
-                -1904,
-                4400
+                1120,
+                3824
             ]
         },
         {
@@ -614,8 +615,8 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -1728,
-                4128
+                1296,
+                3552
             ]
         },
         {
@@ -627,8 +628,8 @@
             "type": "n8n-nodes-base.extractFromFile",
             "typeVersion": 1,
             "position": [
-                -1728,
-                4416
+                1296,
+                3840
             ]
         },
         {
@@ -640,8 +641,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                -1504,
-                4128
+                1520,
+                3552
             ]
         },
         {
@@ -655,8 +656,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1504,
-                4416
+                1520,
+                3840
             ],
             "credentials": {
                 "postgres": {
@@ -676,8 +677,8 @@
             "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
             "typeVersion": 1,
             "position": [
-                -1296,
-                4016
+                1728,
+                3440
             ],
             "credentials": {
                 "postgres": {
@@ -691,8 +692,8 @@
             "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
             "typeVersion": 1,
             "position": [
-                -1328,
-                4224
+                1696,
+                3648
             ],
             "id": "1f5981e5-03fc-4ed9-9eea-835eb6024a34",
             "name": "Embeddings Gemini(Ingestion)",
@@ -710,8 +711,8 @@
             "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
             "typeVersion": 1.1,
             "position": [
-                -1152,
-                4240
+                1872,
+                3664
             ],
             "id": "afc6fa17-307e-4bc9-b3ad-17fe625361e0",
             "name": "Default Data Loader"
@@ -723,8 +724,8 @@
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                -912,
-                4400
+                2112,
+                3824
             ]
         },
         {
@@ -734,30 +735,9 @@
             "type": "n8n-nodes-base.noOp",
             "typeVersion": 1,
             "position": [
-                -624,
-                4400
+                2400,
+                3824
             ]
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
-                "options": {}
-            },
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.6,
-            "position": [
-                352,
-                5216
-            ],
-            "id": "22395edb-e4ab-408b-b109-5e24c0673677",
-            "name": "Log Conversation1",
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
         },
         {
             "parameters": {
@@ -768,8 +748,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
             "position": [
-                144,
-                5392
+                -1072,
+                5312
             ],
             "id": "b0206eca-dbaf-4fd8-8003-d6d4d340fdd2",
             "name": "Conditional Client Upsert",
@@ -782,25 +762,6 @@
         },
         {
             "parameters": {
-                "rule": {
-                    "interval": [
-                        {
-                            "field": "hours"
-                        }
-                    ]
-                }
-            },
-            "id": "8b0f00e6-ac13-4401-8a43-9d6e6532351d",
-            "name": "Hourly Proactive Sweep",
-            "type": "n8n-nodes-base.scheduleTrigger",
-            "typeVersion": 1.2,
-            "position": [
-                1488,
-                4576
-            ]
-        },
-        {
-            "parameters": {
                 "operation": "executeQuery",
                 "query": "SELECT DISTINCT ON (c.from_number) \n  c.from_number, \n  c.session_id, \n  cli.full_name, \n  cli.company_name\nFROM conversations c\nLEFT JOIN client cli ON c.from_number = cli.phone_number\nWHERE c.created_at::timestamp >= NOW() - INTERVAL '48 hours'\n  AND c.created_at::timestamp <= NOW() - INTERVAL '24 hours'\n  AND c.follow_up_sent = FALSE\n  AND (\n      c.user_message ILIKE '%price%' OR \n      c.user_message ILIKE '%cost%' OR \n      c.user_message ILIKE '%moq%' OR \n      c.user_message ILIKE '%wholesale%' OR \n      c.bot_reply ILIKE '%moq%'\n  )\n  AND c.from_number NOT IN (\n      SELECT phone_number FROM orders WHERE order_date::date >= CURRENT_DATE - 2\n  )\nORDER BY c.from_number, c.created_at::timestamp DESC;",
                 "options": {}
@@ -810,8 +771,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1728,
-                4576
+                688,
+                4496
             ],
             "credentials": {
                 "postgres": {
@@ -833,8 +794,8 @@
             "type": "@n8n/n8n-nodes-langchain.agent",
             "typeVersion": 1.7,
             "position": [
-                1968,
-                4576
+                928,
+                4496
             ]
         },
         {
@@ -845,8 +806,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1.1,
             "position": [
-                1920,
-                4784
+                880,
+                4704
             ],
             "id": "8352f30c-ad8f-4e74-830b-cc38e66106bf",
             "name": "Gemini Flash (Copywriter)",
@@ -882,8 +843,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2288,
-                4576
+                1248,
+                4496
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -903,8 +864,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2528,
-                4576
+                1488,
+                4496
             ],
             "credentials": {
                 "postgres": {
@@ -921,8 +882,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                -2624,
-                3984
+                400,
+                3424
             ],
             "typeVersion": 1,
             "id": "243eede3-ff16-47e5-a02f-861fbbf38a2c",
@@ -931,14 +892,14 @@
         {
             "parameters": {
                 "content": "# OpenWA Conversation",
-                "height": 1792,
-                "width": 3920,
+                "height": 1808,
+                "width": 5584,
                 "color": 6
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                -2624,
-                4656
+                -5264,
+                4560
             ],
             "typeVersion": 1,
             "id": "370efe0f-40f0-426e-b952-652010fa99d9",
@@ -953,8 +914,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                4176
+                400,
+                4096
             ],
             "typeVersion": 1,
             "id": "78bfa8ff-7301-4ff5-b27a-3abeb2205b84",
@@ -969,8 +930,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                4496
+                400,
+                4416
             ],
             "typeVersion": 1,
             "id": "caa4b65c-6e0b-47c7-85f8-853daca3466a",
@@ -990,8 +951,8 @@
             "type": "n8n-nodes-base.googleDrive",
             "typeVersion": 3,
             "position": [
-                1744,
-                5056
+                704,
+                4976
             ],
             "id": "f8d0c12c-b0b7-40de-b3f7-fef9c36e6c90",
             "name": "Duplicate Template (Google Drive)",
@@ -1023,8 +984,8 @@
             "type": "n8n-nodes-base.googleDrive",
             "typeVersion": 3,
             "position": [
-                2224,
-                5056
+                1184,
+                4976
             ],
             "credentials": {
                 "googleDriveOAuth2Api": {
@@ -1058,8 +1019,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2560,
-                5056
+                1520,
+                4976
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -1077,8 +1038,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                4992
+                400,
+                4912
             ],
             "typeVersion": 1,
             "id": "78ad23e0-9c70-4b88-9602-25424a689805",
@@ -1112,8 +1073,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -48,
-                5776
+                -1264,
+                5696
             ],
             "id": "1de25aa0-1456-4dab-95a5-8865f86768df",
             "name": "If Order Intent"
@@ -1137,8 +1098,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                400,
-                5856
+                -816,
+                5776
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1175,8 +1136,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -96,
-                5040
+                -1312,
+                4960
             ],
             "id": "7f12b041-afe8-4cc9-8bbc-56cbaf33b56e",
             "name": "If Meeting Intent"
@@ -1208,9 +1169,10 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                128,
-                5040
+                -1088,
+                4960
             ],
+            "alwaysOutputData": true,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1246,8 +1208,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -96,
-                4864
+                -1312,
+                4784
             ],
             "id": "c796a205-addd-4854-bc75-2c063905f2cd",
             "name": "If Booking Confirmation"
@@ -1261,8 +1223,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                336,
-                5040
+                -880,
+                4960
             ]
         },
         {
@@ -1282,8 +1244,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.2,
             "position": [
-                560,
-                5040
+                -656,
+                4960
             ]
         },
         {
@@ -1311,8 +1273,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1088,
-                5040
+                -128,
+                4960
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -1341,8 +1303,8 @@
             "type": "@n8n/n8n-nodes-langchain.googleGemini",
             "typeVersion": 1.2,
             "position": [
-                768,
-                5040
+                -448,
+                4960
             ],
             "id": "ffc98322-dfb1-42ca-8ef2-1c168eac2f2d",
             "name": "Message a model",
@@ -1372,8 +1334,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                2400,
-                5216
+                1360,
+                5136
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1410,8 +1372,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                128,
-                4864
+                -1088,
+                4784
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1483,8 +1445,8 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                -80,
-                6160
+                -1296,
+                6080
             ]
         },
         {
@@ -1506,8 +1468,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.1,
             "position": [
-                160,
-                6048
+                -1056,
+                5968
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1535,8 +1497,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.1,
             "position": [
-                384,
-                6048
+                -832,
+                5968
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1564,8 +1526,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.1,
             "position": [
-                160,
-                6272
+                -1056,
+                6192
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1595,8 +1557,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.1,
             "position": [
-                384,
-                6272
+                -832,
+                6192
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1638,8 +1600,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.4,
             "position": [
-                336,
-                4864
+                -880,
+                4784
             ],
             "id": "c1bf1a46-554d-46b4-a723-c1cb8f4fe830",
             "name": "Send Confirmation & Link via OpenWA",
@@ -1671,8 +1633,8 @@
             "type": "n8n-nodes-base.googleCalendar",
             "typeVersion": 1.2,
             "position": [
-                1712,
-                5584
+                672,
+                5504
             ],
             "credentials": {
                 "googleCalendarOAuth2Api": {
@@ -1710,8 +1672,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                1936,
-                5584
+                896,
+                5504
             ]
         },
         {
@@ -1725,8 +1687,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2144,
-                5552
+                1104,
+                5472
             ],
             "alwaysOutputData": false,
             "credentials": {
@@ -1761,8 +1723,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2368,
-                5552
+                1328,
+                5472
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -1780,8 +1742,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                5456
+                400,
+                5376
             ],
             "typeVersion": 1,
             "id": "0865d973-ceb2-421c-b039-e73845f6064a",
@@ -1816,16 +1778,6 @@
                                 "operation": "false",
                                 "singleValue": true
                             }
-                        },
-                        {
-                            "id": "b0cf806c-294d-4bc5-a8a0-02724966e1e1",
-                            "leftValue": "={{ $json.hasQuote }}",
-                            "rightValue": "",
-                            "operator": {
-                                "type": "boolean",
-                                "operation": "false",
-                                "singleValue": true
-                            }
                         }
                     ],
                     "combinator": "and"
@@ -1835,8 +1787,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -96,
-                5232
+                -1312,
+                5152
             ],
             "id": "a30b884c-d6de-44ec-848d-e0892b834629",
             "name": "Filter Main Reply"
@@ -1869,8 +1821,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -96,
-                5456
+                -1312,
+                5376
             ],
             "id": "1286a2d4-a835-4c92-ad12-6a17454af860",
             "name": "If Register Intent"
@@ -1878,7 +1830,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO client (phone_number, client_type, lead_score, intent_tags, updated_at)\nVALUES ('{{ $json.from.replace(\"@c.us\", \"\") }}', 'unregistered', 0, '[]'::jsonb, NOW())\nON CONFLICT (phone_number) DO NOTHING;",
+                "query": "INSERT INTO client (phone_number, client_type, lead_score, intent_tags, updated_at)\nVALUES ('{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}', 'unregistered', 0, '[]'::jsonb, NOW())\nON CONFLICT (phone_number) DO NOTHING;",
                 "options": {}
             },
             "id": "0e6590c3-267a-4651-99cb-490e05505bd9",
@@ -1886,8 +1838,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -1904,
-                5104
+                -3760,
+                5024
             ],
             "credentials": {
                 "postgres": {
@@ -1926,8 +1878,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                -96,
-                4688
+                -1312,
+                4608
             ]
         },
         {
@@ -1941,8 +1893,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                128,
-                4688
+                -1088,
+                4608
             ],
             "alwaysOutputData": false,
             "credentials": {
@@ -1963,8 +1915,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1696,
-                5920
+                656,
+                5840
             ],
             "credentials": {
                 "postgres": {
@@ -1983,8 +1935,8 @@
             "type": "@n8n/n8n-nodes-langchain.chainLlm",
             "typeVersion": 1.4,
             "position": [
-                1872,
-                5904
+                832,
+                5824
             ]
         },
         {
@@ -1998,8 +1950,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2352,
-                5904
+                1312,
+                5824
             ],
             "credentials": {
                 "postgres": {
@@ -2017,8 +1969,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                5808
+                400,
+                5728
             ],
             "typeVersion": 1,
             "id": "3f2633ee-a456-44ee-80da-d381bc41b3f0",
@@ -2035,8 +1987,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1696,
-                5232
+                656,
+                5152
             ],
             "credentials": {
                 "postgres": {
@@ -2073,8 +2025,8 @@
             "type": "n8n-nodes-base.if",
             "typeVersion": 2.3,
             "position": [
-                1504,
-                5072
+                464,
+                4992
             ],
             "id": "8562245b-ae33-43e4-b973-997020cbf508",
             "name": "If Quote Intent"
@@ -2090,8 +2042,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                400,
-                5520
+                -816,
+                5440
             ],
             "credentials": {
                 "postgres": {
@@ -2111,8 +2063,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1712,
-                6320
+                672,
+                6240
             ],
             "credentials": {
                 "postgres": {
@@ -2131,8 +2083,8 @@
             "type": "@n8n/n8n-nodes-langchain.chainLlm",
             "typeVersion": 1.4,
             "position": [
-                1936,
-                6320
+                896,
+                6240
             ]
         },
         {
@@ -2146,8 +2098,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2432,
-                6320
+                1392,
+                6240
             ],
             "credentials": {
                 "postgres": {
@@ -2165,8 +2117,8 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                1440,
-                6240
+                400,
+                6160
             ],
             "typeVersion": 1,
             "id": "e77e97da-dd0f-4976-b133-37c8ed9cb677",
@@ -2188,8 +2140,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                1488,
-                5584
+                448,
+                5504
             ]
         },
         {
@@ -2207,8 +2159,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                1488,
-                5920
+                448,
+                5840
             ]
         },
         {
@@ -2226,8 +2178,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                1488,
-                6320
+                448,
+                6240
             ]
         },
         {
@@ -2240,8 +2192,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1,
             "position": [
-                1968,
-                6048
+                928,
+                5968
             ],
             "credentials": {
                 "googlePalmApi": {
@@ -2260,8 +2212,8 @@
             "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
             "typeVersion": 1,
             "position": [
-                1904,
-                6496
+                864,
+                6416
             ],
             "credentials": {
                 "googlePalmApi": {
@@ -2295,8 +2247,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2160,
-                5904
+                1120,
+                5824
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -2330,120 +2282,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2240,
-                6320
-            ],
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "fRdKJONX9P8WAPgZ",
-                    "name": "Header Auth openwa"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "path": "pay-test",
-                "responseMode": "responseNode",
-                "options": {}
-            },
-            "id": "8559da77-aab3-4fe3-a7f4-81b59b14ac19",
-            "name": "Payment Link Clicked",
-            "type": "n8n-nodes-base.webhook",
-            "typeVersion": 2,
-            "position": [
-                1488,
-                6768
-            ],
-            "webhookId": "04b8a87f-0537-4156-82f2-d24802f8bb48"
-        },
-        {
-            "parameters": {
-                "respondWith": "text",
-                "responseBody": "==<!DOCTYPE html>\n<html>\n<head>\n  <title>Secure Checkout</title>\n  <style>\n    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f6f8; margin: 0; }\n    .card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }\n    .price { font-size: 2.5rem; color: #111827; margin: 10px 0; font-weight: bold; }\n    .btn { background: #22c55e; color: white; border: none; padding: 14px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 20px; font-weight: bold; }\n    .btn:hover { background: #16a34a; }\n    .summary { text-align: left; background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 14px; color: #4b5563;}\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h2>💳 Order Checkout</h2>\n    <div class=\"price\">৳{{ $json.query.amount || '0.00' }}</div>\n    \n    <div class=\"summary\">\n      <strong>Order ID:</strong> #{{ $json.query.order_id }}<br>\n      <strong>Status:</strong> Pending Payment\n    </div>\n\n    <form action=\"http://localhost:5678/webhook-test/pay-confirm\" method=\"POST\">\n      <input type=\"hidden\" name=\"order_id\" value=\"{{ $json.query.order_id }}\">\n      <input type=\"hidden\" name=\"phone\" value=\"{{ $json.query.phone }}\">\n      <button type=\"submit\" class=\"btn\">Complete Secure Payment</button>\n    </form>\n  </div>\n</body>\n</html>",
-                "options": {
-                    "responseHeaders": {
-                        "entries": [
-                            {
-                                "name": "Content-Type",
-                                "value": "text/html"
-                            }
-                        ]
-                    }
-                }
-            },
-            "id": "28cdd08f-ad7c-44e1-b42e-1cf939e7ba42",
-            "name": "Serve Payment Page",
-            "type": "n8n-nodes-base.respondToWebhook",
-            "typeVersion": 1.1,
-            "position": [
-                1712,
-                6768
-            ]
-        },
-        {
-            "parameters": {
-                "httpMethod": "POST",
-                "path": "pay-confirm",
-                "options": {}
-            },
-            "id": "5f502542-b3b9-40f3-83f5-27d541021274",
-            "name": "Payment Confirmed Callback",
-            "type": "n8n-nodes-base.webhook",
-            "typeVersion": 2,
-            "position": [
-                1488,
-                6976
-            ],
-            "webhookId": "cb39462d-9050-4464-a581-44b9327085cb"
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "UPDATE orders \nSET payment_status = 'PAID',\n    order_status = 'Processing',\n    updated_at = NOW()\nWHERE order_id = '{{ $json.body.order_id }}';\n",
-                "options": {}
-            },
-            "id": "ebc22ecd-2369-462a-ac03-a5ac82140445",
-            "name": "Mark Order as Paid",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1712,
-                6976
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
-                "authentication": "genericCredentialType",
-                "genericAuthType": "httpHeaderAuth",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ {\n  \"chatId\": $('Payment Confirmed Callback').item.json.body.phone + \"@c.us\",\n  \"text\": \"✅ *Payment Received!*\\n\\nWe have received your payment for Order *#\" + $('Payment Confirmed Callback').item.json.body.order_id + \"*. Your order is now officially being processed!\"\n} }}",
-                "options": {}
-            },
-            "id": "2c2da24c-240a-4466-9358-ee760bd63e6f",
-            "name": "Send Paid Receipt via OpenWA",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                1936,
-                6976
+                1200,
+                6240
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -2467,8 +2307,8 @@
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.2,
             "position": [
-                1488,
-                4256
+                448,
+                4176
             ]
         },
         {
@@ -2482,8 +2322,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1712,
-                4256
+                672,
+                4176
             ],
             "credentials": {
                 "postgres": {
@@ -2503,8 +2343,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1936,
-                4256
+                896,
+                4176
             ],
             "credentials": {
                 "postgres": {
@@ -2530,7 +2370,7 @@
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ {\n  \"chatId\": $('Fetch Unprocessed Queue').item.json.phone_number + \"@c.us\",\n  \"text\": \"✅ *Your order is confirmed!*\\n\\nWe are preparing your \" + $('Fetch Unprocessed Queue').item.json.extracted_json.product_name + \".\\n\\n💳 *Complete your payment securely here:*\\nhttp://localhost:5678/webhook-test/pay-test?order_id=\" + $('Fetch Unprocessed Queue').item.json.extracted_json.order_id + \"&phone=\" + $('Fetch Unprocessed Queue').item.json.phone_number\n} }}",
+                "jsonBody": "={{ {\n  \"chatId\": $('Fetch Unprocessed Queue').item.json.phone_number + \"@c.us\",\n  \"text\": \"✅ *Your order is confirmed!*\\n\\nWe are preparing your *\" + $('Fetch Unprocessed Queue').item.json.extracted_json.product_name + \"*.\\n\\n🏷️ *Order ID:* \" + $('Fetch Unprocessed Queue').item.json.extracted_json.order_id + \"\\n📦 *Quantity:* \" + $('Fetch Unprocessed Queue').item.json.extracted_json.quantity + \"\\n💰 *Total Price:* ৳\" + (Number($('Fetch Unprocessed Queue').item.json.extracted_json.quantity) * Number($('Fetch Unprocessed Queue').item.json.extracted_json.unit_price) * (1 - (Number($('Fetch Unprocessed Queue').item.json.extracted_json.discount_prcnt) / 100))).toFixed(2) + \"\\n\\n💳 *Complete your payment securely here:*\\nhttp://localhost:5678/webhook-test/pay-test?order_id=\" + $('Fetch Unprocessed Queue').item.json.extracted_json.order_id + \"&phone=\" + $('Fetch Unprocessed Queue').item.json.phone_number + \"&amount=\" + (Number($('Fetch Unprocessed Queue').item.json.extracted_json.quantity) * Number($('Fetch Unprocessed Queue').item.json.extracted_json.unit_price) * (1 - (Number($('Fetch Unprocessed Queue').item.json.extracted_json.discount_prcnt) / 100))).toFixed(2)\n} }}",
                 "options": {}
             },
             "id": "744b8e11-3837-4941-b05a-8b8617501cad",
@@ -2538,8 +2378,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                2160,
-                4256
+                1120,
+                4176
             ],
             "credentials": {
                 "httpHeaderAuth": {
@@ -2559,8 +2399,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                2368,
-                4256
+                1328,
+                4176
             ],
             "credentials": {
                 "postgres": {
@@ -2571,29 +2411,13 @@
         },
         {
             "parameters": {
-                "content": "# Payment processing",
-                "height": 480,
-                "width": 736,
-                "color": "#262DF2"
-            },
-            "type": "n8n-nodes-base.stickyNote",
-            "position": [
-                1440,
-                6688
-            ],
-            "typeVersion": 1,
-            "id": "06d6677a-e320-4363-aa6e-fcfbf5e5ee2b",
-            "name": "Sticky Note8"
-        },
-        {
-            "parameters": {
                 "jsCode": "// 1. Fetch data from the Parse Order Intent node\nconst parseIntentItem = $('Parse Order Intent').first().json;\nconst quoteData = parseIntentItem.quoteData || parseIntentItem || {};\n\n// 2. Extract numeric parameters safely with defaults\nconst quantity = Number(quoteData.quantity) || 1;\nconst unitPrice = Number(quoteData.unit_price) || 0;\nconst discountPrcnt = Number(quoteData.discount_prcnt) || 0;\n\n// 3. Calculate Prices\nconst subtotal = unitPrice * quantity;\nconst discountAmount = subtotal * (discountPrcnt / 100);\nconst discountedPrice = Math.round((subtotal - discountAmount) * 100) / 100;\n\n// 4. Output complete merged object for n8n\nreturn {\n  json: {\n    ...quoteData,\n    discount_prcnt: discountPrcnt,\n    discounted_price: discountedPrice,\n    total_price: subtotal\n  }\n};"
             },
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                1904,
-                5056
+                864,
+                4976
             ],
             "id": "2f75a672-2adc-4d1d-bf13-71c5d5d6388b",
             "name": "assorted data"
@@ -2605,8 +2429,8 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                2384,
-                5056
+                1344,
+                4976
             ],
             "id": "79beb6e4-1195-4c06-8054-d9f3f27a4780",
             "name": "PDF Insertion"
@@ -2658,8 +2482,8 @@
             "type": "n8n-nodes-base.googleDocs",
             "typeVersion": 2,
             "position": [
-                2064,
-                5056
+                1024,
+                4976
             ],
             "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
             "name": "Update Template",
@@ -2669,48 +2493,881 @@
                     "name": "Google Docs account"
                 }
             }
-        }
-    ],
-    "pinData": {
-        "Parse Order Intent": [
-            {
-                "json": {
-                    "output": "I've updated your quote to **1,000 units** of the **Organic Cotton Onesie** for **Stark Textiles**. \n\nWith your **15% volume discount** applied, the unit price drops from $24.99 to **$21.24**, bringing your updated total to **$21,241.50**. Your official proforma PDF quote has been generated!",
-                    "hasOrder": false,
-                    "orderData": {},
-                    "hasRegister": false,
-                    "registerData": {},
-                    "hasQuote": true,
-                    "quoteData": {
-                        "company_name": "Stark Textiles",
-                        "product_name": "Organic Cotton Onesie",
-                        "quantity": 1000,
-                        "unit_price": 24.99,
-                        "discount_prcnt": 15
-                    },
-                    "hasMeetingIntent": false,
-                    "hasBookingConfirmation": false,
-                    "meetingData": {},
-                    "hasCancellation": false,
-                    "hasReschedule": false,
-                    "targetClientName": "",
-                    "rescheduleData": {},
-                    "hasBuyingIntent": false,
-                    "from": "8801345863767@c.us",
-                    "sessionId": "826775a3-abd6-4419-9203-a65c6ab5717c"
-                },
-                "pairedItem": {
-                    "item": 0
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT requires_human \nFROM chat_sessions \nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                -4336,
+                5328
+            ],
+            "id": "d5ad51ae-a93b-419b-9300-97fda53f8e4a",
+            "name": "Check Handoff Status",
+            "alwaysOutputData": true,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
                 }
             }
-        ]
-    },
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "993c3d21-4215-4611-b217-f60877b03cb7",
+                            "leftValue": "={{ $json.requires_human || false }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -4160,
+                5328
+            ],
+            "id": "c109227a-ed40-495d-8e93-9d66c1eac801",
+            "name": "Is Human Needed?"
+        },
+        {
+            "parameters": {},
+            "id": "c5b7a568-626e-4634-8cd4-90a9930c5702",
+            "name": "Do Nothing(Human Handoff)",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -4000,
+                5088
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.output }}",
+                            "operation": "contains",
+                            "value2": "|||ESCALATE|||"
+                        }
+                    ]
+                }
+            },
+            "id": "8d48c96a-8afd-4e01-a556-0987967d0e05",
+            "name": "Did AI Escalate?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -2208,
+                5264
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO chat_sessions (phone_number, requires_human) \nVALUES ('{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}', TRUE) \nON CONFLICT (phone_number) \nDO UPDATE SET requires_human = TRUE, updated_at = now();",
+                "options": {}
+            },
+            "id": "98284be4-33c3-45cb-9abe-172563f1fc7d",
+            "name": "Mute AI in DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -2080,
+                4864
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').first().json.sessionId || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Extract Message Data').first().json.from,\n  \"text\": \"I'm connecting you with a human expert who can help you with this specific request. They will review our chat and message you shortly!\"\n} }}",
+                "options": {}
+            },
+            "id": "fc9f2be0-ca70-45ed-b6cc-063b89daa465",
+            "name": "Notify Customer of Transfer",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -1872,
+                4864
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').first().json.sessionId || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": \"YOUR_PERSONAL_NUMBER@c.us\",\n  \"text\": \"🚨 *HOT LEAD ESCALATION* 🚨\\n\\nPhone: +\" + $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") + \"\\n\\nThe AI escalated this chat. The bot is now muted for this number. Open WhatsApp to take over!\"\n} }}",
+                "options": {}
+            },
+            "id": "b4347d13-eada-4ee5-8ebb-13722fc441da",
+            "name": "Alert Admin of Escalation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -1648,
+                4864
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $('Extract Message Data').first().json.userMessage }}",
+                            "value2": "/bot on"
+                        }
+                    ]
+                }
+            },
+            "id": "d7dcb37b-a4b4-49e0-98d3-fb6063fcb708",
+            "name": "Is Secret Command?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -4592,
+                5312
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE chat_sessions \nSET requires_human = FALSE, updated_at = now() \nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';",
+                "options": {}
+            },
+            "id": "6560c5da-779f-417a-8894-f36f8f61ad51",
+            "name": "Unmute AI in DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                -4432,
+                5104
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').first().json.sessionId || '826775a3-abd6-4419-9203-a65c6ab5717c' }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Extract Message Data').first().json.from,\n  \"text\": \"🤖 *AI Activated*\\n\\nThe bot has successfully taken over this chat again.\"\n} }}",
+                "options": {}
+            },
+            "id": "66772fe9-d8cd-45e2-8990-ce2ec56302c4",
+            "name": "Confirm Unmute to Admin",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -4224,
+                5104
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                112,
+                4960
+            ],
+            "id": "9e73545f-e53a-4aae-a0b9-c58bf1ed09bd",
+            "name": "Log Conversation 1",
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                -864,
+                5136
+            ],
+            "id": "22395edb-e4ab-408b-b109-5e24c0673677",
+            "name": "Log Conversation 2",
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT \n    product_id, \n    name AS product_name, \n    price AS unit_price, \n    quantity AS stock_available, \n    stock_status\nFROM products\nWHERE $1 != 'NONE' \n  AND (\n    name ILIKE '%' || $1 || '%' \n    OR to_tsvector('english', name) @@ plainto_tsquery('english', $1)\n  )\nLIMIT 3;",
+                "options": {
+                    "queryReplacement": "=[\"{{ $json.content.parts[0].text }}\"]"
+                }
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                -3600,
+                5712
+            ],
+            "id": "5aaafbb0-ebb5-46d6-9e4c-2e6ea2b0c4c7",
+            "name": "Search Live Inventory",
+            "alwaysOutputData": true,
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\n\nlet inventoryString = \"### LIVE DATABASE INVENTORY CATALOG ###\\n\";\n\nitems.forEach(item => {\n  let p = item.json;\n  inventoryString += `- ${p.product_name} (ID: ${p.product_id}) | Price: ৳${p.unit_price} | Stock: ${p.stock_available} (${p.stock_status})\\n`;\n});\n\nreturn [{ json: { live_inventory_context: inventoryString } }];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -3392,
+                5712
+            ],
+            "id": "7d8280e3-0c61-44a6-828a-9427d38744b2",
+            "name": "Format Live Inventory"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "models/gemini-3-flash-preview"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=You are a strict product keyword extractor.\nUser Message: \"{{ $('Extract Message Data').first().json.userMessage }}\"\n\nTask: Extract the core product noun the user is asking about (e.g., \"onesie\", \"beanie\", \"swaddle\", \"towel\").\nRules:\n1. Output ONLY a single word or short phrase. No punctuation.\n2. Remove plurals (e.g., change \"onesies\" to \"onesie\").\n3. Do not include quantities or conversational filler.\n4. If absolutely no product is mentioned, output exactly: NONE"
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.2,
+            "position": [
+                -3888,
+                5712
+            ],
+            "id": "09cf1c90-6be9-4780-be1c-5ecb83898730",
+            "name": "Message a model1",
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Automated Post-Sale Nurture & Upsell System",
+                "height": 400,
+                "width": 1440,
+                "color": "#0CB072"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                400,
+                7152
+            ],
+            "typeVersion": 1,
+            "id": "ec4095c2-7a3c-49e3-876e-52744e6c7b5d",
+            "name": "Sticky Note9"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT \n    o.order_id,\n    o.phone_number,\n    o.product_name,\n    o.quantity,\n    o.unit_price,\n    o.order_date,\n    c.full_name,\n    c.company_name\nFROM orders o\nLEFT JOIN client c ON o.phone_number = c.phone_number\nWHERE o.payment_status = 'PAID'\n  AND o.post_sale_nurture_sent = FALSE\n  AND o.order_date::timestamptz <= NOW() - INTERVAL '30 days'\nORDER BY o.order_date::timestamptz ASC\nLIMIT 5;",
+                "options": {}
+            },
+            "id": "fc59f9ad-c427-4523-bfdb-2d5d2ee33558",
+            "name": "Fetch Eligible Orders",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                688,
+                7296
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "models/gemini-2.5-flash"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=You are the WhatsApp B2B Sales Executive for Aim Green Limited.\n\nGenerate a warm, professional post-sale check-in message for a wholesale client.\n\nCLIENT DATA:\n- Client Name: {{ $('Fetch Eligible Orders').item.json.full_name || 'Valued Partner' }}\n- Company Name: {{ $('Fetch Eligible Orders').item.json.company_name || 'your business' }}\n- Product Purchased: {{ $('Fetch Eligible Orders').item.json.product_name }}\n- Quantity: {{ $('Fetch Eligible Orders').item.json.quantity }} units\n- Purchase Date: 30 days ago\n\nDIRECTIVES:\n1. Tone: Friendly, B2B, helpful, non-pushy.\n2. Structure: \n   - Ask how the quality and performance of the {{ $('Fetch Eligible Orders').item.json.product_name }} order is holding up.\n   - Offer an exclusive 5% repeat-order loyalty discount valid if reordered this week.\n3. Length: Max 3-4 sentences. Suitable for WhatsApp formatting.\n4. Output: Return ONLY the exact text message to send. No quotes, formatting explanations, or tag blocks."
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "id": "91f8b0cb-0aa8-4ab9-aa94-1d0b55aaf2c5",
+            "name": "Draft Upsell Message",
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.2,
+            "position": [
+                880,
+                7296
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE orders \nSET post_sale_nurture_sent = TRUE,\n    post_sale_nurtured_at = NOW()\nWHERE order_id = '{{ $('Fetch Eligible Orders').item.json.order_id }}';",
+                "options": {}
+            },
+            "id": "12d1422e-90b4-4bb1-986c-c880a9269e7e",
+            "name": "Mark Order Nurtured",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1408,
+                7296
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ $('Fetch Eligible Orders').item.json.phone_number }}',\n  '{{ $('Fetch Eligible Orders').item.json.phone_number }}',\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: 30-Day Post-Sale Nurture Sent]',\n  '{{ (typeof $('Draft Upsell Message').item.json.content === \"string\" ? $('Draft Upsell Message').item.json.content : ($('Draft Upsell Message').item.json.content?.parts?.[0]?.text || $('Draft Upsell Message').item.json.text)).replace(/'/g, \"''\") }}',\n  NOW()\n);",
+                "options": {}
+            },
+            "id": "b91d94d8-bb93-40db-9e1d-c5b43b83d412",
+            "name": "Log Nurture in History",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1648,
+                7296
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "path": "pay-test",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "b05c963b-7b7f-40a5-9730-4e9078487cfb",
+            "name": "Payment Link Clicked",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                448,
+                6704
+            ],
+            "webhookId": "04b8a87f-0537-4156-82f2-d24802f8bb48"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE orders \nSET checkout_opened_at = NOW() \nWHERE order_id = '{{ $('Payment Link Clicked').item.json.query.order_id }}'\n  AND checkout_opened_at IS NULL;",
+                "options": {}
+            },
+            "id": "d9db631d-8a52-4494-b4de-f2d61432ba0e",
+            "name": "Log Checkout Opened",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                672,
+                6704
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "==<!DOCTYPE html>\n<html>\n<head>\n  <title>Secure Checkout</title>\n  <style>\n    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f6f8; margin: 0; }\n    .card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }\n    .price { font-size: 2.5rem; color: #111827; margin: 10px 0; font-weight: bold; }\n    .btn { background: #22c55e; color: white; border: none; padding: 14px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 20px; font-weight: bold; }\n    .btn:hover { background: #16a34a; }\n    .summary { text-align: left; background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 14px; color: #4b5563;}\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h2>💳 Order Checkout</h2>\n    <div class=\"price\">৳{{ $('Payment Link Clicked').item.json.query.amount || '0.00' }}</div>\n    \n    <div class=\"summary\">\n      <strong>Order ID:</strong> #{{ $('Payment Link Clicked').item.json.query.order_id }}<br>\n      <strong>Status:</strong> Pending Payment\n    </div>\n\n    <form action=\"http://localhost:5678/webhook-test/pay-confirm\" method=\"POST\">\n      <input type=\"hidden\" name=\"order_id\" value=\"{{ $('Payment Link Clicked').item.json.query.order_id }}\">\n      <input type=\"hidden\" name=\"phone\" value=\"{{ $('Payment Link Clicked').item.json.query.phone }}\">\n      <button type=\"submit\" class=\"btn\">Complete Secure Payment</button>\n    </form>\n  </div>\n</body>\n</html>",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Content-Type",
+                                "value": "text/html"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "3bf44b9c-1dae-417a-a544-dbaac512c741",
+            "name": "Serve Payment Page",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                896,
+                6704
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "pay-confirm",
+                "options": {}
+            },
+            "id": "36a45534-7897-405d-a172-c80184974124",
+            "name": "Payment Confirmed Callback",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                448,
+                6912
+            ],
+            "webhookId": "cb39462d-9050-4464-a581-44b9327085cb"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE orders \nSET payment_status = 'PAID',\n    order_status = 'Processing',\n    updated_at = NOW()\nWHERE order_id = '{{ $json.body.order_id }}';\n",
+                "options": {}
+            },
+            "id": "1726d853-1efd-466e-bbc2-385a1eb52b52",
+            "name": "Mark Order as Paid",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                672,
+                6912
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": $('Payment Confirmed Callback').item.json.body.phone + \"@c.us\",\n  \"text\": \"✅ *Payment Received!*\\n\\nWe have received your payment for Order *#\" + $('Payment Confirmed Callback').item.json.body.order_id + \"*. Your order is now officially being processed!\"\n} }}",
+                "options": {}
+            },
+            "id": "ffb281d2-41a4-4c6c-83b1-7310a8fc9fbc",
+            "name": "Send Paid Receipt via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                896,
+                6912
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Payment processing",
+                "height": 480,
+                "width": 736,
+                "color": "#262DF2"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                400,
+                6624
+            ],
+            "typeVersion": 1,
+            "id": "50a93202-82d5-4a52-a89f-c177d038ebc0",
+            "name": "Sticky Note8"
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 * * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "8940d7ea-163a-4b9d-a14e-ced69a40f67e",
+            "name": "Post Sale Nurture(10AM)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                448,
+                7296
+            ]
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours"
+                        }
+                    ]
+                }
+            },
+            "id": "8b0f00e6-ac13-4401-8a43-9d6e6532351d",
+            "name": "Abandoned Quotes Handler Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                4496
+            ]
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 * * * *"
+                        }
+                    ]
+                }
+            },
+            "id": "e239cad0-f71a-4453-a97d-5cca6dec18dd",
+            "name": "Hourly Abandonment Check",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                448,
+                7696
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT \n    o.order_id,\n    o.phone_number,\n    o.product_name,\n    o.quantity,\n    o.unit_price,\n    c.full_name,\n    c.company_name\nFROM orders o\nLEFT JOIN client c ON o.phone_number = c.phone_number\nWHERE o.payment_status = 'UNPAID'\n  AND o.abandonment_nudge_sent = FALSE\n  AND o.checkout_opened_at IS NOT NULL\n  AND o.checkout_opened_at::timestamptz <= NOW() - INTERVAL '2 hours'\nORDER BY o.checkout_opened_at::timestamptz ASC\nLIMIT 5;",
+                "options": {}
+            },
+            "id": "fe56ee09-0c96-49b8-a613-c039de973588",
+            "name": "Fetch Abandoned Carts",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                688,
+                7696
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "models/gemini-2.5-flash"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=You are the WhatsApp B2B Sales Executive for Aim Green Limited.\n\nGenerate a warm, helpful cart abandonment nudge for a wholesale client.\n\nCLIENT DATA:\n- Client Name: {{ $('Fetch Abandoned Carts').item.json.full_name || 'there' }}\n- Company Name: {{ $('Fetch Abandoned Carts').item.json.company_name || 'your business' }}\n- Pending Product: {{ $('Fetch Abandoned Carts').item.json.product_name }}\n- Pending Quantity: {{ $('Fetch Abandoned Carts').item.json.quantity }} units\n- Cart Value: ৳{{ $('Fetch Abandoned Carts').item.json.quantity * $('Fetch Abandoned Carts').item.json.unit_price }}\n\nDIRECTIVES:\n1. Tone: Friendly, B2B, helpful, NOT desperate.\n2. Structure: \n   - Note that their checkout link for the {{ $('Fetch Abandoned Carts').item.json.product_name }} is still open.\n   - Ask if they ran into any technical issues or need help adjusting the invoice.\n3. Length: Max 2-3 sentences. Suitable for WhatsApp formatting.\n4. Output: Return ONLY the exact text message to send. No quotes, formatting explanations, or tag blocks."
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "id": "b793dff6-7504-4807-bb5b-cd5350170f95",
+            "name": "Draft Nudge Message",
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.2,
+            "position": [
+                896,
+                7696
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "MUMZYgHqE8cLz0bk",
+                    "name": "Google Gemini(PaLM) Api account (openwa)"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE orders \nSET abandonment_nudge_sent = TRUE,\n    nudge_sent_at = NOW()\nWHERE order_id = '{{ $('Fetch Abandoned Carts').item.json.order_id }}';",
+                "options": {}
+            },
+            "id": "ddc02129-2164-4fb3-abe3-b1ef872e909f",
+            "name": "Mark Cart Nudged",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1440,
+                7696
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ $('Fetch Abandoned Carts').item.json.phone_number }}',\n  '{{ $('Fetch Abandoned Carts').item.json.phone_number }}',\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: Cart Abandonment Nudge Sent]',\n  '{{ (typeof $('Draft Nudge Message').item.json.content === \"string\" ? $('Draft Nudge Message').item.json.content : ($('Draft Nudge Message').item.json.content?.parts?.[0]?.text || $('Draft Nudge Message').item.json.text)).replace(/'/g, \"''\") }}',\n  NOW()\n);",
+                "options": {}
+            },
+            "id": "093e3f7e-aed0-4120-8105-dcb11b021a3b",
+            "name": "Log Nudge in History",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1648,
+                7696
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "content": "# Cart Abandonment Recovery",
+                "height": 400,
+                "width": 1472,
+                "color": "#0A57F0"
+            },
+            "type": "n8n-nodes-base.stickyNote",
+            "position": [
+                400,
+                7584
+            ],
+            "typeVersion": 1,
+            "id": "b22dde61-996f-4766-a4c7-bdbe83f28dc7",
+            "name": "Sticky Note10"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": String($('Fetch Eligible Orders').item.json.phone_number) + \"@c.us\",\n  \"text\": typeof $json.content === 'string' ? $json.content : ($json.content?.parts?.[0]?.text || $json.text)\n} }}",
+                "options": {}
+            },
+            "id": "6ea2bb4c-0262-43a8-8ff7-4e2b1aee5622",
+            "name": "Post Sale Text via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1200,
+                7296
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/826775a3-abd6-4419-9203-a65c6ab5717c/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ {\n  \"chatId\": String($('Fetch Abandoned Carts').item.json.phone_number) + \"@c.us\",\n  \"text\": typeof $('Draft Nudge Message').item.json.content === 'string' ? $('Draft Nudge Message').item.json.content : ($('Draft Nudge Message').item.json.content?.parts?.[0]?.text || $('Draft Nudge Message').item.json.text)\n} }}",
+                "options": {}
+            },
+            "id": "297a3577-068d-49bf-a478-ece877353c37",
+            "name": "Cart Abandon Recov Text via OpenWA",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1232,
+                7696
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        }
+    ],
+    "pinData": {},
     "connections": {
         "Send Reply via OpenWA": {
             "main": [
                 [
                     {
-                        "node": "Log Conversation1",
+                        "node": "Log Conversation 2",
                         "type": "main",
                         "index": 0
                     }
@@ -2767,7 +3424,7 @@
             "main": [
                 [
                     {
-                        "node": "Parse Order Intent",
+                        "node": "Did AI Escalate?",
                         "type": "main",
                         "index": 0
                     }
@@ -2917,17 +3574,7 @@
             "main": [
                 [
                     {
-                        "node": "Lookup Customer Orders",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Fetch Conversation History",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Initialize Ghost Lead",
+                        "node": "Is Secret Command?",
                         "type": "main",
                         "index": 0
                     }
@@ -3107,17 +3754,6 @@
                 [
                     {
                         "node": "KB Ingestion Complete",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Hourly Proactive Sweep": {
-            "main": [
-                [
-                    {
-                        "node": "Fetch Abandoned Quotes",
                         "type": "main",
                         "index": 0
                     }
@@ -3536,39 +4172,6 @@
                 ]
             ]
         },
-        "Payment Link Clicked": {
-            "main": [
-                [
-                    {
-                        "node": "Serve Payment Page",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Payment Confirmed Callback": {
-            "main": [
-                [
-                    {
-                        "node": "Mark Order as Paid",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Mark Order as Paid": {
-            "main": [
-                [
-                    {
-                        "node": "Send Paid Receipt via OpenWA",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Queue Sync Trigger": {
             "main": [
                 [
@@ -3645,6 +4248,328 @@
                     }
                 ]
             ]
+        },
+        "Check Handoff Status": {
+            "main": [
+                [
+                    {
+                        "node": "Is Human Needed?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Human Needed?": {
+            "main": [
+                [
+                    {
+                        "node": "Do Nothing(Human Handoff)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Initialize Ghost Lead",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Fetch Conversation History",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Lookup Customer Orders",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Message a model1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Did AI Escalate?": {
+            "main": [
+                [
+                    {
+                        "node": "Mute AI in DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Parse Order Intent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mute AI in DB": {
+            "main": [
+                [
+                    {
+                        "node": "Notify Customer of Transfer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Notify Customer of Transfer": {
+            "main": [
+                [
+                    {
+                        "node": "Alert Admin of Escalation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Secret Command?": {
+            "main": [
+                [
+                    {
+                        "node": "Unmute AI in DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Check Handoff Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Unmute AI in DB": {
+            "main": [
+                [
+                    {
+                        "node": "Confirm Unmute to Admin",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Times via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Log Conversation 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Search Live Inventory": {
+            "main": [
+                [
+                    {
+                        "node": "Format Live Inventory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Live Inventory": {
+            "main": [
+                [
+                    {
+                        "node": "Merge All Context",
+                        "type": "main",
+                        "index": 2
+                    }
+                ]
+            ]
+        },
+        "Message a model1": {
+            "main": [
+                [
+                    {
+                        "node": "Search Live Inventory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Eligible Orders": {
+            "main": [
+                [
+                    {
+                        "node": "Draft Upsell Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Draft Upsell Message": {
+            "main": [
+                [
+                    {
+                        "node": "Post Sale Text via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Order Nurtured": {
+            "main": [
+                [
+                    {
+                        "node": "Log Nurture in History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Link Clicked": {
+            "main": [
+                [
+                    {
+                        "node": "Log Checkout Opened",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Checkout Opened": {
+            "main": [
+                [
+                    {
+                        "node": "Serve Payment Page",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Confirmed Callback": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Order as Paid",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Order as Paid": {
+            "main": [
+                [
+                    {
+                        "node": "Send Paid Receipt via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post Sale Nurture(10AM)": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Eligible Orders",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Abandoned Quotes Handler Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Abandoned Quotes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Hourly Abandonment Check": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Abandoned Carts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Abandoned Carts": {
+            "main": [
+                [
+                    {
+                        "node": "Draft Nudge Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Draft Nudge Message": {
+            "main": [
+                [
+                    {
+                        "node": "Cart Abandon Recov Text via OpenWA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Cart Nudged": {
+            "main": [
+                [
+                    {
+                        "node": "Log Nudge in History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post Sale Text via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Order Nurtured",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Cart Abandon Recov Text via OpenWA": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Cart Nudged",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     },
     "active": false,
@@ -3652,7 +4577,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "85bfef8f-dc20-4622-80eb-4b2c24ee3f32",
+    "versionId": "6ae01694-6045-4fa6-abb0-1c6c77c850f7",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
