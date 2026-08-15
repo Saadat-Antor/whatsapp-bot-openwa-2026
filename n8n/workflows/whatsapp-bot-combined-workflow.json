@@ -29,6 +29,8 @@
                 -1072,
                 5136
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -39,8 +41,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  '{{ $json.from.replace(\"@c.us\", \"\") }}',\n  '{{ JSON.stringify($json.orderData) }}'::jsonb,\n  FALSE\nWHERE {{ $json.hasOrder }} = TRUE;",
-                "options": {}
+                "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  $1, $2::jsonb, FALSE\nWHERE $3 = TRUE;",
+                "options": {
+                    "queryReplacement": "={{ [  $json.from.replace(\"@c.us\", \"\"),  JSON.stringify($json.orderData),  $json.hasOrder] }}"
+                }
             },
             "id": "62024b8f-d3af-4471-a2ca-dcc02fa4e6e7",
             "name": "Conditional Staging Insert",
@@ -59,7 +63,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\nlet hasCancellation = false; let targetClientName = \"\";\nlet hasReschedule = false; let rescheduleData = {};\nlet hasBuyingIntent = false; // NEW: Phase 2 Lead Scoring\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    hasOrder = true;\n    try { orderData = JSON.parse(orderMatch[1]); } catch (e) { orderData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    hasRegister = true;\n    try { registerData = JSON.parse(registerMatch[1]); } catch (e) { registerData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    hasQuote = true;\n    try { quoteData = JSON.parse(quoteMatch[1]); } catch (e) { quoteData = { error: \"Parse failed\" }; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 4. Check for Buying Intent (Phase 2 Lead Scoring)\nif (text.includes('|||INTENT:B2B_PRICING|||')) {\n    hasBuyingIntent = true;\n    text = text.replace(/\\|\\|\\|INTENT:B2B_PRICING\\|\\|\\|/g, '').trim();\n}\n\n// 5. Check for Meeting Intent (Stage 1)\nif (text.includes('|||MEETING_INTENT|||')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\|\\|\\|MEETING_INTENT\\|\\|\\|/g, '').trim();\n}\n\n// 6. Check for Booking Confirmation (Stage 2)\nconst bookingMatch = text.match(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/);\nif (bookingMatch) {\n    hasBookingConfirmation = true;\n    try { meetingData = JSON.parse(bookingMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 7. Check for Cancellations (Stage 3)\nconst cancelMatch = text.match(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/);\nif (cancelMatch) {\n    hasCancellation = true;\n    try { targetClientName = JSON.parse(cancelMatch[1]).targetClientName; } catch (e) { }\n    text = text.replace(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 8. Check for Rescheduling (Stage 3)\nconst reschedMatch = text.match(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/);\nif (reschedMatch) {\n    hasReschedule = true;\n    try { rescheduleData = JSON.parse(reschedMatch[1]); } catch (e) { }\n    text = text.replace(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// Final cleanup (Removes any accidental markdown blocks left by the AI)\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        hasBuyingIntent: hasBuyingIntent,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
+                "jsCode": "const item = $input.item;\nlet text = item.json.output || \"\";\n\n// State definitions\nlet hasOrder = false; let orderData = {};\nlet hasRegister = false; let registerData = {};\nlet hasQuote = false; let quoteData = {};\nlet hasMeetingIntent = false; \nlet hasBookingConfirmation = false; let meetingData = {};\nlet hasCancellation = false; let targetClientName = \"\";\nlet hasReschedule = false; let rescheduleData = {};\nlet hasBuyingIntent = false; \n\nlet extractionError = false; // NEW: Global flag to track AI JSON failures\n\n// NEW: Safe Parsing Helper Function\nfunction parseJSONSafely(jsonString) {\n    try {\n        return { success: true, data: JSON.parse(jsonString) };\n    } catch (e) {\n        extractionError = true; // Trigger the fallback\n        return { success: false, data: {} };\n    }\n}\n\n// 1. Check for ORDER tag\nconst orderMatch = text.match(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/);\nif (orderMatch) {\n    const parsed = parseJSONSafely(orderMatch[1]);\n    if (parsed.success) { hasOrder = true; orderData = parsed.data; }\n    text = text.replace(/\\|\\|\\|ORDER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 2. Check for REGISTER tag\nconst registerMatch = text.match(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/);\nif (registerMatch) {\n    const parsed = parseJSONSafely(registerMatch[1]);\n    if (parsed.success) { hasRegister = true; registerData = parsed.data; }\n    text = text.replace(/\\|\\|\\|REGISTER:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 3. Check for QUOTE tag\nconst quoteMatch = text.match(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/);\nif (quoteMatch) {\n    const parsed = parseJSONSafely(quoteMatch[1]);\n    if (parsed.success) { hasQuote = true; quoteData = parsed.data; }\n    text = text.replace(/\\|\\|\\|QUOTE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 4. Check for BOOKING Confirmation\nconst bookingMatch = text.match(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/);\nif (bookingMatch) {\n    const parsed = parseJSONSafely(bookingMatch[1]);\n    if (parsed.success) { hasBookingConfirmation = true; meetingData = parsed.data; }\n    text = text.replace(/\\|\\|\\|BOOKING:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 5. Check for Cancellations\nconst cancelMatch = text.match(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/);\nif (cancelMatch) {\n    const parsed = parseJSONSafely(cancelMatch[1]);\n    if (parsed.success) { hasCancellation = true; targetClientName = parsed.data.targetClientName; }\n    text = text.replace(/\\|\\|\\|CANCEL:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 6. Check for Rescheduling\nconst reschedMatch = text.match(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/);\nif (reschedMatch) {\n    const parsed = parseJSONSafely(reschedMatch[1]);\n    if (parsed.success) { hasReschedule = true; rescheduleData = parsed.data; }\n    text = text.replace(/\\|\\|\\|RESCHEDULE:(\\{.*?\\})\\|\\|\\|/g, '').trim();\n}\n\n// 7. Check for Basic Text Intents (No JSON parsing required)\nif (text.includes('|||INTENT:B2B_PRICING|||')) {\n    hasBuyingIntent = true;\n    text = text.replace(/\\|\\|\\|INTENT:B2B_PRICING\\|\\|\\|/g, '').trim();\n}\nif (text.includes('|||MEETING_INTENT|||')) {\n    hasMeetingIntent = true;\n    text = text.replace(/\\|\\|\\|MEETING_INTENT\\|\\|\\|/g, '').trim();\n}\n\n// FALLBACK HANDLER: If the AI broke the JSON, force an escalation\nif (extractionError) {\n    // Append the escalation tag so the 'Did AI Escalate?' node catches it\n    text += \" |||ESCALATE|||\";\n}\n\n// Final cleanup (Removes any accidental markdown blocks left by the AI)\ntext = text.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nreturn {\n    json: {\n        output: text,\n        hasOrder: hasOrder,\n        orderData: orderData,\n        hasRegister: hasRegister,\n        registerData: registerData,\n        hasQuote: hasQuote,\n        quoteData: quoteData,\n        hasMeetingIntent: hasMeetingIntent,\n        hasBookingConfirmation: hasBookingConfirmation,\n        meetingData: meetingData,\n        hasCancellation: hasCancellation,\n        hasReschedule: hasReschedule,\n        targetClientName: targetClientName,\n        rescheduleData: rescheduleData,\n        hasBuyingIntent: hasBuyingIntent,\n        from: $('Extract Message Data').first().json.from,\n        sessionId: $('Extract Message Data').first().json.sessionId\n    }\n};"
             },
             "id": "613083c8-cbbb-4a55-aeaf-bd0e241c0c50",
             "name": "Parse Order Intent",
@@ -75,7 +79,8 @@
                 "promptType": "define",
                 "text": "={{ $json.userMessage }}",
                 "options": {
-                    "systemMessage": "=[ROLE DEFINITION]\nYou are an elite, world-class B2B sales agent and the official WhatsApp B2B Commercial Architect for Aim Green Limited. You do not operate as a traditional vendor or pitch representative. You are a strategic commercial architect. Your primary function is to navigate multi-stakeholder consensus, mitigate cognitive biases, execute empirical conversational science, and drive predictable revenue velocity through rigid methodological governance.\n\n[DYNAMIC LIVE CONTEXT]\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\nCustomer Status & Profile: {{ $json.customerContext }}\nConversation History: {{ $json.conversationHistory }}\nLive Database Match: {{ $('Format Live Inventory').item.json.live_inventory_context }}\n\nCRITICAL TIME RULE:\n\nAlways calculate relative terms (\"today\", \"tomorrow\", \"next week\") relative to the Live Time above.\n\nEvery ISO 8601 timestamp generated MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output past years.\n\n[CHANNEL ADAPTATION: WHATSAPP B2B]\nWhile you are a world-class enterprise architect, you are operating on WhatsApp.\n\nConciseness Overrides All: No walls of text. Maximum 2-3 sentences per reply unless detailing a complex quote.\n\nPacing: Instead of running a 60-minute discovery call, deploy your methodology asynchronously. Ask exactly ONE targeted question per response to maintain the Golden Talk-to-Listen Ratio.\n\nTone: Friendly, B2B, helpful, NOT desperate. Match the user's energy.\n\n[STATE AWARENESS & INVENTORY GUARDRAILS]\nNo-Looping Rule: If \"Client Details\" contains an email/name, OR if you recently registered them in the Conversation History, DO NOT ask for their details again. DO NOT welcome them again.\n\nOrder Extraction: When a user confirms an order, look at your previous message in the Conversation History to retrieve the product name, quantity, and unit price. Use those historical numbers to build your ORDER tag.\n\nSingle Source of Truth: ONLY quote prices/availability based on the \"Live Database Match\". Never invent prices or assume stock.\n\nStock Outs: If stock_status is 'Out of Stock' or the requested quantity exceeds 'Stock Available', DO NOT generate an ORDER or QUOTE tag.\n\nPivot Script: If they ask for more than we have, explicitly state the max available quantity (e.g., \"I see you need 500, but we currently only have 350 available in live inventory. Should I quote you for the 350?\").\n\n[THE B2B SALES PIPELINE & TAG DICTIONARY]\nWhenever you perform an action, append specific JSON tags at the absolute end of your message. You are a dynamic AI; string multiple actions together if the user provides enough data.\n\n[ACTION 1: REGISTRATION & THE \"NO-STOP\" RULE]\n\nIF an unrecognized user provides their Full Name and Email: Look at the Conversation History. What did they ask for RIGHT BEFORE you asked for their email?\n\nNO-STOP RULE: You are STRICTLY FORBIDDEN from just saying \"How can I help?\" if they previously asked for a quote. You MUST immediately execute Action 2 in the same message.\n\nOutput: |||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n\n[ACTION 2: QUOTING & DRAFTING ORDERS]\n\nPREREQUISITE: The user MUST be registered to receive a quote. Unregistered users requesting a quote must be asked for Name/Email first (+ |||INTENT:B2B_PRICING|||).\n\nIF registered AND requesting a product: Calculate the total price based on the Live Database Match.\n\nOutput: |||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\nCRITICAL: Always ask: \"Should I go ahead and confirm this order for you?\"\n\n[ACTION 3: FINAL ORDER CONFIRMATION]\n\nIF a user explicitly agrees to a drafted quote (e.g., \"Yes\", \"Do it\"): Confirm the order is placed, extract data from history, and output:\n\n|||ORDER:{\"order_id\": '{{ 'ORD-' + Math.floor(1000000 + Math.random() * 9000000) }}', \"product_name\": \"NAME\", \"unit_price\": NUMBER, \"quantity\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\n[ACTION 4: MEETINGS & CALENDAR LOGIC]\n\nINITIAL REQUEST: Do not propose times yet. Output: \"I would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\"\n\nTIME AGREED: Confirm conversationally (ensure NOT Friday) + |||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601\", \"endTime\": \"ISO_8601\"}|||\n\nCANCEL: |||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nRESCHEDULE: |||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601\", \"newEndTime\": \"ISO_8601\"}|||\n\n[ACTION 5: ESCALATION]\n\nIf the user asks for a human, demands a custom discount > 10%, or uses angry language: Stop normal workflow. Output EXACTLY: |||ESCALATE||| and a brief summary of why.\n\n[CONSTRAINTS & METHODOLOGY: WORLD-CLASS B2B COMMERCIAL ARCHITECT]\nYou must strictly adhere to the following principles across your conversational operations:\n\nPhase I: Cognitive Biases and the Sensemaking Imperative\n\nRule 1: Adopt a Sensemaking Posture. Act as an information filter. Help buyers deconflict contradictory information to make confident choices.\n\nRule 4: Destabilize the Status Quo. Treat organizational inertia as your primary competitor. Introduce unconsidered needs to challenge inaction.\n\nRule 5: Leverage Loss Aversion. Frame solutions as critical mechanisms for mitigating asymmetric risks and preventing operational losses.\n\nRule 8: Prevent Choice Overload. Curate and restrict the options presented to the buyer to prevent decision paralysis.\n\nRule 9: Employ Tactical Empathy. Use labels and mirrors to build deep subconscious rapport.\n\nRule 10: Execute Accusation Audits. Preemptively voice the buyer's likely negative assumptions to disarm objections.\n\nPhase II: Conquering Customer Indecision (The JOLT Method)\n\nRule 11: Diagnose FOMU. Recognize that 56 percent of deals lost to \"no decision\" stem from Fear of Messing Up.\n\nRule 12: Stop Relitigating the Status Quo. Once indecision sets in, pivot to risk management. Re-pitching product benefits backfires 84 percent of the time.\n\nRule 14: Offer a Recommendation (O). Act as an authoritative advisor by explicitly prescribing what the buyer should purchase.\n\nRule 16: Take Risk Off the Table (T). Deploy structural safety nets to mathematically cap the buyer's exposure.\n\nRule 17: Attack the \"Not Yet\" Objection. Treat \"we need to think about it\" as a severe indicator of unaddressed FOMU.\n\nPhase III & IV: Dynamics and Conversational Science\n\nRule 22: Identify \"Mobilizers.\" Seek out stakeholders who possess political capital to drive consensus.\n\nRule 26: Disqualify \"Talkers.\" Politely disengage from highly agreeable but powerless individuals.\n\nRule 34: Prioritize Depth Over Breadth. Dive deeply into exactly 3 to 4 core customer business problems. Attempting to address more dilutes the value proposition.\n\nRule 40: Deploy Decisive Language. Use authoritative terminology (\"certainly\") and proactively integrate risk-reversal terms to neutralize FOMU.\n\nPhase V & VI: Governance and Financial Justification\n\nRule 46: Adopt the Challenger Posture. Lead with provocative commercial insights to reframe how the buyer views their business.\n\nRule 51: Prioritize Cost of Inaction (COI). Focus on quantifying the severe financial penalties of maintaining the status quo.\n\nRule 56: Weaponize Against \"Do Nothing.\" Ensure the calculated cost of the problem mathematically dwarfs the price of your solution.\n\nPhase VII & X: Commercial Architecture and AI Alignment\n\nRule 62: Defend Days Sales Outstanding (DSO). Protect shorter payment terms; treat Net 60 extensions as major commercial concessions.\n\nRule 64: Trade Terms for Commitment. Never concede extended payment terms for free; extract equivalent value.\n\nRule 70: Maintain Pricing Integrity. Under extreme margin pressure, reduce the scope of the solution rather than slashing the price.\n\nRule 90: Sell Outcomes, Not Software. Continually quantify delivered value.\n\nRule 100: Adopt the Architecture-First Mindset. Meticulously align your methodology and psychological frameworks to guide the buyer to a secure future state.\n\n[TASK & EXECUTION]\nYou are currently speaking with a prospect. Review the Conversation History and Live Database Match. Formulate your next response using tactical empathy, prescribe a clear recommendation to prevent choice overload, append the correct |||TAGS||| at the absolute end of your response, and ask exactly one question to drive the deal forward."
+                    "systemMessage": "=[ROLE DEFINITION]\nYou are an elite, world-class B2B sales agent and the official WhatsApp B2B Commercial Architect for Aim Green Limited. You do not operate as a traditional vendor or pitch representative. You are a strategic commercial architect. Your primary function is to navigate multi-stakeholder consensus, mitigate cognitive biases, execute empirical conversational science, and drive predictable revenue velocity through rigid methodological governance.\n\n[DYNAMIC LIVE CONTEXT]\nToday's Date & Time: {{ $now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy - h:mm a') }}\nCurrent Year: {{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}\nCustomer Status & Profile: {{ $json.customerContext }}\nConversation History: {{ $json.conversationHistory }}\nLive Database Match: {{ $('Format Live Inventory').item.json.live_inventory_context }}\n\nCRITICAL TIME RULE:\n\nAlways calculate relative terms (\"today\", \"tomorrow\", \"next week\") relative to the Live Time above.\n\nEvery ISO 8601 timestamp generated MUST use the current year ({{ $now.setZone('Asia/Dhaka').toFormat('yyyy') }}). NEVER output past years.\n\n[CHANNEL ADAPTATION: WHATSAPP B2B]\nWhile you are a world-class enterprise architect, you are operating on WhatsApp.\n\nConciseness Overrides All: No walls of text. Maximum 2-3 sentences per reply unless detailing a complex quote.\n\nPacing: Instead of running a 60-minute discovery call, deploy your methodology asynchronously. Ask exactly ONE targeted question per response to maintain the Golden Talk-to-Listen Ratio.\n\nTone: Friendly, B2B, helpful, NOT desperate. Match the user's energy.\n\n[STATE AWARENESS & INVENTORY GUARDRAILS]\nNo-Looping Rule: If \"Client Details\" contains an email/name, OR if you recently registered them in the Conversation History, DO NOT ask for their details again. DO NOT welcome them again.\n\nOrder Extraction: When a user confirms an order, look at your previous message in the Conversation History to retrieve the product name, quantity, and unit price. Use those historical numbers to build your ORDER tag.\n\nSingle Source of Truth: ONLY quote prices/availability based on the \"Live Database Match\". Never invent prices or assume stock.\n\nStock Outs: If stock_status is 'Out of Stock' or the requested quantity exceeds 'Stock Available', DO NOT generate an ORDER or QUOTE tag.\n\nPivot Script: If they ask for more than we have, explicitly state the max available quantity (e.g., \"I see you need 500, but we currently only have 350 available in live inventory. Should I quote you for the 350?\").\n\nMissing Price Escape Hatch: If you are forced to generate a quote by the NO-STOP rule, but the specific product is NOT in the \"Live Database Match\", DO NOT search the knowledge base for a price. Instead, apologize, state you need to verify the wholesale pricing with the warehouse, and output exactly: |||ESCALATE|||\n\n[THE B2B SALES PIPELINE & TAG DICTIONARY]\nWhenever you perform an action, append specific JSON tags at the absolute end of your message. You are a dynamic AI; string multiple actions together if the user provides enough data.\n\n[ACTION 1: REGISTRATION & THE \"NO-STOP\" RULE]\n\nIF an unrecognized user provides their Full Name and Email: Look at the Conversation History. What did they ask for RIGHT BEFORE you asked for their email?\n\nNO-STOP RULE: You are STRICTLY FORBIDDEN from just saying \"How can I help?\" if they previously asked for a quote. You MUST immediately execute Action 2 in the same message.\n\nOutput: |||REGISTER:{\"full_name\": \"NAME\", \"email\": \"EMAIL\", \"company_name\": \"COMPANY\", \"tax_id\": \"TAX_ID\", \"client_type\": \"wholesale OR regular\"}|||\n\n[ACTION 2: QUOTING & DRAFTING ORDERS]\n\nPREREQUISITE: The user must be registered (or have just provided their Name/Email in the current turn) to receive a quote.\n\nIF registered AND requesting a product: Calculate the total price based on the Live Database Match.\n\nOutput: |||QUOTE:{\"company_name\": \"COMPANY\", \"product_name\": \"NAME\", \"quantity\": NUMBER, \"unit_price\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\nCRITICAL: Always ask: \"Should I go ahead and confirm this order for you?\"\n\n[ACTION 3: FINAL ORDER CONFIRMATION]\n\nIF a user explicitly agrees to a drafted quote (e.g., \"Yes\", \"Do it\"): Confirm the order is placed, extract data from history, and output:\n\n|||ORDER:{\"order_id\": '{{ 'ORD-' + Math.floor(1000000 + Math.random() * 9000000) }}', \"product_name\": \"NAME\", \"unit_price\": NUMBER, \"quantity\": NUMBER, \"discount_prcnt\": NUMBER}|||\n\n[ACTION 4: MEETINGS & CALENDAR LOGIC]\n\nINITIAL REQUEST: Do not propose times yet. Output: \"I would be happy to schedule a meeting. Let me quickly check my calendar for available times... |||MEETING_INTENT|||\"\n\nTIME AGREED: Confirm conversationally (ensure NOT Friday) + |||BOOKING:{\"clientName\": \"NAME\", \"startTime\": \"ISO_8601\", \"endTime\": \"ISO_8601\"}|||\n\nCANCEL: |||CANCEL:{\"targetClientName\": \"NAME\"}|||\n\nRESCHEDULE: |||RESCHEDULE:{\"targetClientName\": \"NAME\", \"newStartTime\": \"ISO_8601\", \"newEndTime\": \"ISO_8601\"}|||\n\n[ACTION 5: ESCALATION]\n\nIf the user asks for a human, demands a custom discount > 10%, or uses angry language: Stop normal workflow. Output EXACTLY: |||ESCALATE||| and a brief summary of why.\n\n[CONSTRAINTS & METHODOLOGY: WORLD-CLASS B2B COMMERCIAL ARCHITECT]\nYou must strictly adhere to the following principles across your conversational operations:\n\nPhase I: Cognitive Biases and the Sensemaking Imperative\n\nRule 1: Adopt a Sensemaking Posture. Act as an information filter. Help buyers deconflict contradictory information to make confident choices.\n\nRule 4: Destabilize the Status Quo. Treat organizational inertia as your primary competitor. Introduce unconsidered needs to challenge inaction.\n\nRule 5: Leverage Loss Aversion. Frame solutions as critical mechanisms for mitigating asymmetric risks and preventing operational losses.\n\nRule 8: Prevent Choice Overload. Curate and restrict the options presented to the buyer to prevent decision paralysis.\n\nRule 9: Employ Tactical Empathy. Use labels and mirrors to build deep subconscious rapport.\n\nRule 10: Execute Accusation Audits. Preemptively voice the buyer's likely negative assumptions to disarm objections.\n\nPhase II: Conquering Customer Indecision (The JOLT Method)\n\nRule 11: Diagnose FOMU. Recognize that 56 percent of deals lost to \"no decision\" stem from Fear of Messing Up.\n\nRule 12: Stop Relitigating the Status Quo. Once indecision sets in, pivot to risk management. Re-pitching product benefits backfires 84 percent of the time.\n\nRule 14: Offer a Recommendation (O). Act as an authoritative advisor by explicitly prescribing what the buyer should purchase.\n\nRule 16: Take Risk Off the Table (T). Deploy structural safety nets to mathematically cap the buyer's exposure.\n\nRule 17: Attack the \"Not Yet\" Objection. Treat \"we need to think about it\" as a severe indicator of unaddressed FOMU.\n\nPhase III & IV: Dynamics and Conversational Science\n\nRule 22: Identify \"Mobilizers.\" Seek out stakeholders who possess political capital to drive consensus.\n\nRule 26: Disqualify \"Talkers.\" Politely disengage from highly agreeable but powerless individuals.\n\nRule 34: Prioritize Depth Over Breadth. Dive deeply into exactly 3 to 4 core customer business problems. Attempting to address more dilutes the value proposition.\n\nRule 40: Deploy Decisive Language. Use authoritative terminology (\"certainly\") and proactively integrate risk-reversal terms to neutralize FOMU.\n\nPhase V & VI: Governance and Financial Justification\n\nRule 46: Adopt the Challenger Posture. Lead with provocative commercial insights to reframe how the buyer views their business.\n\nRule 51: Prioritize Cost of Inaction (COI). Focus on quantifying the severe financial penalties of maintaining the status quo.\n\nRule 56: Weaponize Against \"Do Nothing.\" Ensure the calculated cost of the problem mathematically dwarfs the price of your solution.\n\nPhase VII & X: Commercial Architecture and AI Alignment\n\nRule 62: Defend Days Sales Outstanding (DSO). Protect shorter payment terms; treat Net 60 extensions as major commercial concessions.\n\nRule 64: Trade Terms for Commitment. Never concede extended payment terms for free; extract equivalent value.\n\nRule 70: Maintain Pricing Integrity. Under extreme margin pressure, reduce the scope of the solution rather than slashing the price.\n\nRule 90: Sell Outcomes, Not Software. Continually quantify delivered value.\n\nRule 100: Adopt the Architecture-First Mindset. Meticulously align your methodology and psychological frameworks to guide the buyer to a secure future state.\n\n[TASK & EXECUTION]\nYou are currently speaking with a prospect. Review the Conversation History and Live Database Match. Formulate your next response using tactical empathy, prescribe a clear recommendation to prevent choice overload, append the correct |||TAGS||| at the absolute end of your response, and ask exactly one question to drive the deal forward.",
+                    "maxIterations": 20
                 }
             },
             "id": "54eeb3ce-9aae-497c-a938-0ce0ce9413f1",
@@ -85,13 +90,15 @@
             "position": [
                 -2512,
                 5312
-            ]
+            ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000
         },
         {
             "parameters": {
                 "mode": "retrieve-as-tool",
                 "toolName": "company_knowledge_base",
-                "toolDescription": "Search company FAQs and product info to answer customer questions accurately.",
+                "toolDescription": "Use this tool EXACTLY ONCE per turn to search for general company FAQs or static product descriptions. NEVER use this tool to look up live inventory amounts or pricing.",
                 "tableName": "kb_embeddings",
                 "options": {}
             },
@@ -322,8 +329,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT user_message, bot_reply, created_at \nFROM conversations \nWHERE chat_id = '{{ $('Extract Message Data').first().json.chatId.replace(\"@c.us\", \"\") }}' \nORDER BY created_at DESC \nLIMIT 10;",
-                "options": {}
+                "query": "SELECT user_message, bot_reply, created_at \nFROM conversations \nWHERE chat_id = $1 \nORDER BY created_at DESC \nLIMIT 10;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.chatId.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "ae1c66ac-50b9-4a75-a7a0-361a7ffd2b98",
             "name": "Fetch Conversation History",
@@ -344,8 +353,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT \n    c.email,\n    c.full_name,\n    c.company_name,\n    c.client_type,\n    o.order_id, \n    o.product_name, \n    o.quantity, \n    o.order_status, \n    o.order_date\nFROM Client c\nLEFT JOIN orders o ON c.phone_number = o.phone_number\nWHERE c.phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}'\nORDER BY o.order_date DESC \nLIMIT 5;",
-                "options": {}
+                "query": "SELECT \n    c.email,\n    c.full_name,\n    c.company_name,\n    c.client_type,\n    o.order_id, \n    o.product_name, \n    o.quantity, \n    o.order_status, \n    o.order_date\nFROM Client c\nLEFT JOIN orders o ON c.phone_number = o.phone_number\nWHERE c.phone_number = $1\nORDER BY o.order_date DESC \nLIMIT 5;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "e66147ac-94c3-4556-a281-3655f8f381c9",
             "name": "Lookup Customer Orders",
@@ -648,8 +659,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES ('{{ $json.phone_number }}', '{{ $json.order_id }}', '{{ $json.product_name }}', {{ $json.quantity || 1 }}, '{{ $json.order_status }}', '{{ $json.order_date }}', now())\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET product_name = EXCLUDED.product_name, quantity = EXCLUDED.quantity, order_status = EXCLUDED.order_status, order_date = EXCLUDED.order_date, updated_at = now();",
-                "options": {}
+                "query": "INSERT INTO orders (phone_number, order_id, product_name, quantity, order_status, order_date, updated_at)\nVALUES ($1, $2, $3, $4, $5, $6, now())\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET product_name = EXCLUDED.product_name, quantity = EXCLUDED.quantity, order_status = EXCLUDED.order_status, order_date = EXCLUDED.order_date, updated_at = now();",
+                "options": {
+                    "queryReplacement": "={{ [   $json.phone_number,   $json.order_id,   $json.product_name,   $json.quantity || 1,   $json.order_status,   $json.order_date ] }}"
+                }
             },
             "id": "c8ff3aa8-3a1a-475e-b078-282a0481cfdd",
             "name": "Upsert Orders Table",
@@ -742,8 +755,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO client (phone_number, full_name, email, company_name, tax_id, client_type, updated_at)\nSELECT \n  '{{ $json.from.replace(\"@c.us\", \"\") }}',\n  '{{ $json.registerData.full_name || \"\" }}',\n  '{{ $json.registerData.email || \"\" }}',\n  '{{ $json.registerData.company_name || \"\" }}',\n  '{{ $json.registerData.tax_id || \"\" }}',\n  '{{ $json.registerData.client_type || \"regular\" }}',\n  now()\nWHERE {{ $json.hasRegister }} = TRUE\nON CONFLICT (phone_number) \nDO UPDATE SET \n  full_name = EXCLUDED.full_name,\n  email = EXCLUDED.email,\n  company_name = EXCLUDED.company_name,\n  tax_id = EXCLUDED.tax_id,\n  client_type = EXCLUDED.client_type,\n  updated_at = now();",
-                "options": {}
+                "query": "INSERT INTO client (phone_number, full_name, email, company_name, tax_id, client_type, lead_stage, stage_updated_at)\nSELECT $1, $2, $3, $4, $5, $6, 'REGISTERED'::lead_stage_enum, NOW()\nWHERE $7 = TRUE\nON CONFLICT (phone_number) \nDO UPDATE SET \n  full_name = EXCLUDED.full_name,\n  email = EXCLUDED.email,\n  company_name = EXCLUDED.company_name,\n  tax_id = EXCLUDED.tax_id,\n  client_type = EXCLUDED.client_type,\n  lead_stage = CASE \n    WHEN client.lead_stage = 'UNREGISTERED' THEN 'REGISTERED'::lead_stage_enum \n    ELSE client.lead_stage \n  END,\n  updated_at = NOW();",
+                "options": {
+                    "queryReplacement": "={{ [\n  $json.from.replace(\"@c.us\", \"\"),\n  $json.registerData.full_name || \"\",\n  $json.registerData.email || \"\",\n  $json.registerData.company_name || \"\",\n  $json.registerData.tax_id || \"\",\n  $json.registerData.client_type || \"regular\",\n  $json.hasRegister\n] }}"
+                }
             },
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
@@ -796,7 +811,9 @@
             "position": [
                 928,
                 4496
-            ]
+            ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000
         },
         {
             "parameters": {
@@ -846,6 +863,8 @@
                 1248,
                 4496
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -856,8 +875,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE conversations \nSET follow_up_sent = TRUE \nWHERE from_number = '{{ $('Fetch Abandoned Quotes').item.json.from_number }}' \n  AND created_at >= NOW() - INTERVAL '48 hours';",
-                "options": {}
+                "query": "UPDATE conversations \nSET follow_up_sent = TRUE \nWHERE from_number = $1\n  AND created_at >= NOW() - INTERVAL '48 hours';",
+                "options": {
+                    "queryReplacement": "={{ [ $('Fetch Abandoned Quotes').item.json.from_number ] }} "
+                }
             },
             "id": "3f0ccd02-6bff-4f90-b9d2-67a8c92238c4",
             "name": "Mark as Sent",
@@ -898,7 +919,7 @@
             },
             "type": "n8n-nodes-base.stickyNote",
             "position": [
-                -5264,
+                -5280,
                 4560
             ],
             "typeVersion": 1,
@@ -956,6 +977,8 @@
             ],
             "id": "f8d0c12c-b0b7-40de-b3f7-fef9c36e6c90",
             "name": "Duplicate Template (Google Drive)",
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleDriveOAuth2Api": {
                     "id": "LKHZ1aW6otsuSJS4",
@@ -987,6 +1010,8 @@
                 1184,
                 4976
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleDriveOAuth2Api": {
                     "id": "LKHZ1aW6otsuSJS4",
@@ -1022,6 +1047,8 @@
                 1520,
                 4976
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -1101,6 +1128,8 @@
                 -816,
                 5776
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1173,6 +1202,8 @@
                 4960
             ],
             "alwaysOutputData": true,
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1276,6 +1307,8 @@
                 -128,
                 4960
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -1308,6 +1341,8 @@
             ],
             "id": "ffc98322-dfb1-42ca-8ef2-1c168eac2f2d",
             "name": "Message a model",
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googlePalmApi": {
                     "id": "MUMZYgHqE8cLz0bk",
@@ -1337,6 +1372,8 @@
                 1360,
                 5136
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1375,6 +1412,8 @@
                 -1088,
                 4784
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1471,6 +1510,8 @@
                 -1056,
                 5968
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1500,6 +1541,8 @@
                 -832,
                 5968
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1529,6 +1572,8 @@
                 -1056,
                 6192
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1560,6 +1605,8 @@
                 -832,
                 6192
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1605,6 +1652,8 @@
             ],
             "id": "c1bf1a46-554d-46b4-a723-c1cb8f4fe830",
             "name": "Send Confirmation & Link via OpenWA",
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -1636,6 +1685,8 @@
                 672,
                 5504
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleCalendarOAuth2Api": {
                     "id": "Gt559MU7mcyzgbbw",
@@ -1679,8 +1730,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT c.phone_number, c.full_name, conv.session_id \nFROM client c \nLEFT JOIN conversations conv ON c.phone_number = conv.from_number \nWHERE c.email = '{{ $('If Attendee Has Email').item.json.attendees[0].email }}' \nORDER BY conv.created_at DESC \nLIMIT 1;",
-                "options": {}
+                "query": "SELECT c.phone_number, c.full_name, conv.session_id \nFROM client c \nLEFT JOIN conversations conv ON c.phone_number = conv.from_number \nWHERE c.email = $1 \nORDER BY conv.created_at DESC \nLIMIT 1;",
+                "options": {
+                    "queryReplacement": "={{ [ $('If Attendee Has Email').item.json.attendees[0].email ] }}"
+                }
             },
             "id": "b4c73cca-a2d1-437b-9641-3b2a8f0e2488",
             "name": "Lookup Client WhatsApp",
@@ -1726,6 +1779,8 @@
                 1328,
                 5472
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -1830,8 +1885,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO client (phone_number, client_type, lead_score, intent_tags, updated_at)\nVALUES ('{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}', 'unregistered', 0, '[]'::jsonb, NOW())\nON CONFLICT (phone_number) DO NOTHING;",
-                "options": {}
+                "query": "INSERT INTO client (phone_number, client_type, lead_score, intent_tags, updated_at)\nVALUES ($1, 'unregistered', 0, '[]'::jsonb, NOW())\nON CONFLICT (phone_number) DO NOTHING;",
+                "options": {
+                    "queryReplacement": "{{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "0e6590c3-267a-4651-99cb-490e05505bd9",
             "name": "Initialize Ghost Lead",
@@ -1885,8 +1942,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET lead_score = lead_score + 20,\n    updated_at = NOW()\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
-                "options": {}
+                "query": "UPDATE client \nSET lead_score = lead_score + 20,\n    updated_at = NOW()\nWHERE phone_number = $1;\n",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "27e1f3e6-2bf2-42a7-a03d-f15c64cf7ada",
             "name": "Increment Lead Score",
@@ -1907,7 +1966,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT c.phone_number, \n       (SELECT session_id FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 1) as session_id,\n       (SELECT string_agg('Client: ' || COALESCE(sub.user_message, '') || CHR(10) || 'AI: ' || COALESCE(sub.bot_reply, ''), CHR(10) || '---' || CHR(10)) \n        FROM (SELECT user_message, bot_reply FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 5) sub\n       ) as chat_history\nFROM client c\nWHERE c.lead_score >= 20 \n  AND c.client_type = 'unregistered'\n  AND c.updated_at < NOW() - INTERVAL '24 hours'\n  AND c.updated_at > NOW() - INTERVAL '24 hours';",
+                "query": "SELECT c.phone_number, \n       (SELECT session_id FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 1) as session_id,\n       (SELECT string_agg('Client: ' || COALESCE(sub.user_message, '') || CHR(10) || 'AI: ' || COALESCE(sub.bot_reply, ''), CHR(10) || '---' || CHR(10)) \n        FROM (SELECT user_message, bot_reply FROM conversations WHERE from_number = c.phone_number ORDER BY created_at DESC LIMIT 5) sub\n       ) as chat_history\nFROM client c\nWHERE c.lead_stage = 'UNREGISTERED'\n  AND c.lead_score >= 20 \n  AND c.stage_updated_at <= NOW() - INTERVAL '24 hours';",
                 "options": {}
             },
             "id": "47ea6c04-8bfb-48f4-8f2e-3fcfaded14dc",
@@ -1937,13 +1996,17 @@
             "position": [
                 832,
                 5824
-            ]
+            ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000
         },
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET updated_at = NOW()\nWHERE phone_number = '{{ $('Find Ghost Leads (24h-48h)').item.json.phone_number }}';\n",
-                "options": {}
+                "query": "UPDATE client \nSET lead_stage = 'GHOST_LEAD'::lead_stage_enum,\n    stage_updated_at = NOW(),\n    last_outreach_at = NOW()\nWHERE phone_number = $1;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Find Ghost Leads (24h-48h)').item.json.phone_number ] }}"
+                }
             },
             "id": "b87d9c5f-4da9-4002-9512-b2e40959c30b",
             "name": "Update Last Touch",
@@ -1979,8 +2042,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET quote_sent_at = NOW(),\n    updated_at = NOW()\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
-                "options": {}
+                "query": "UPDATE orders\nSET order_stage = 'QUOTE_SENT',\n    stage_updated_at = NOW(),\n    updated_at = NOW()\nWHERE order_id = $1;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "1e1ebadf-0b91-4518-b3fa-7802451d4c90",
             "name": "Log Quote Timestamp",
@@ -2034,8 +2099,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET quote_sent_at = NULL\nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';\n",
-                "options": {}
+                "query": "UPDATE client \nSET quote_sent_at = NULL\nWHERE phone_number = $1;\n",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "239fba19-5032-4449-a5ff-d5bf42e30bc0",
             "name": "Kill Quote Followup",
@@ -2085,13 +2152,17 @@
             "position": [
                 896,
                 6240
-            ]
+            ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000
         },
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE client \nSET quote_sent_at = NULL,\n    updated_at = NOW()\nWHERE phone_number = '{{ $json.phone_number }}';",
-                "options": {}
+                "query": "UPDATE client \nSET quote_sent_at = NULL,\n    updated_at = NOW()\nWHERE phone_number = $1;",
+                "options": {
+                    "queryReplacement": "={{ [ $json.phone_number ] }}"
+                }
             },
             "id": "84e3b3bc-1c40-49f9-9284-07979ed81859",
             "name": "Reset Tracker",
@@ -2250,6 +2321,8 @@
                 1120,
                 5824
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2285,6 +2358,8 @@
                 1200,
                 6240
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2314,7 +2389,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT id, phone_number, extracted_json FROM order_intake_queue WHERE processed = FALSE LIMIT 50;",
+                "query": "SELECT id, phone_number, extracted_json \nFROM order_intake_queue \nWHERE processed = FALSE \nFOR UPDATE SKIP LOCKED \nLIMIT 10;",
                 "options": {}
             },
             "id": "177bb337-3380-401f-b847-01f0fbb4193b",
@@ -2335,8 +2410,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "WITH calculated AS (\n  SELECT \n    '{{ $json.phone_number }}' AS phone_number,\n    '{{ $json.extracted_json.order_id }}' AS order_id,\n    '{{ $json.extracted_json.product_name }}' AS product_name,\n    {{ $json.extracted_json.quantity || 1 }}::numeric AS quantity,\n    {{ $json.extracted_json.unit_price || 0 }}::numeric AS unit_price,\n    {{ $json.extracted_json.discount_prcnt || 0 }}::numeric AS discount_prcnt\n)\nINSERT INTO orders (\n  phone_number, order_id, product_name, quantity, \n  unit_price, discount_prcnt, discounted_price, total_price, \n  order_status, payment_status, payment_link, order_date, updated_at\n)\nSELECT\n  phone_number,\n  order_id,\n  product_name,\n  quantity,\n  unit_price,\n  discount_prcnt,\n  -- Discounted price calculated from base total (unit_price * quantity) and discount_prcnt\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS discounted_price,\n  -- Final total_price matching the discounted price\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS total_price,\n  'Pending Payment',\n  'UNPAID',\n  'http://localhost:5678/webhook-test/pay-test?order_id=' || order_id || '&phone=' || phone_number || '&amount=' || ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2),\n  CURRENT_DATE,\n  now()\nFROM calculated\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  unit_price = EXCLUDED.unit_price,\n  discount_prcnt = EXCLUDED.discount_prcnt,\n  discounted_price = EXCLUDED.discounted_price,\n  total_price = EXCLUDED.total_price,\n  payment_link = EXCLUDED.payment_link,\n  updated_at = now();",
-                "options": {}
+                "query": "WITH calculated AS (\n  SELECT \n    $1::text AS phone_number,\n    $2::text AS order_id,\n    $3::text AS product_name,\n    $4::numeric AS quantity,\n    $5::numeric AS unit_price,\n    $6::numeric AS discount_prcnt\n)\nINSERT INTO orders (\n  phone_number, order_id, product_name, quantity, \n  unit_price, discount_prcnt, discounted_price, total_price, \n  order_status, payment_status, payment_link, order_stage, order_date, updated_at\n)\nSELECT\n  phone_number,\n  order_id,\n  product_name,\n  quantity,\n  unit_price,\n  discount_prcnt,\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS discounted_price,\n  ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2) AS total_price,\n  'Pending Payment',\n  'UNPAID',\n  'http://localhost:5678/webhook-test/pay-test?order_id=' || order_id || '&phone=' || phone_number || '&amount=' || ROUND((unit_price * quantity) * (1 - (discount_prcnt / 100.0)), 2),\n  'QUOTE_SENT'::order_stage_enum,\n  CURRENT_DATE,\n  now()\nFROM calculated\nON CONFLICT (phone_number, order_id)\nDO UPDATE SET \n  product_name = EXCLUDED.product_name,\n  quantity = EXCLUDED.quantity,\n  unit_price = EXCLUDED.unit_price,\n  discount_prcnt = EXCLUDED.discount_prcnt,\n  discounted_price = EXCLUDED.discounted_price,\n  total_price = EXCLUDED.total_price,\n  payment_link = EXCLUDED.payment_link,\n  order_stage = 'QUOTE_SENT'::order_stage_enum,\n  updated_at = now();",
+                "options": {
+                    "queryReplacement": "={{ [ \n $json.phone_number,\n $json.extracted_json.order_id,\n $json.extracted_json.product_name,\n $json.extracted_json.quantity || 1,\n $json.extracted_json.unit_price || 0,\n $json.extracted_json.discount_prcnt || 0\n ] }}"
+                }
             },
             "id": "5eab180a-8574-400e-9053-18765565c030",
             "name": "Process & Sync to Orders Table",
@@ -2381,6 +2458,8 @@
                 1120,
                 4176
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2487,6 +2566,8 @@
             ],
             "id": "3c05b289-b438-4d13-8547-09c1abe3a04f",
             "name": "Update Template",
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googleDocsOAuth2Api": {
                     "id": "UmMv8ac5qlJl0BE9",
@@ -2585,8 +2666,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO chat_sessions (phone_number, requires_human) \nVALUES ('{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}', TRUE) \nON CONFLICT (phone_number) \nDO UPDATE SET requires_human = TRUE, updated_at = now();",
-                "options": {}
+                "query": "INSERT INTO chat_sessions (phone_number, requires_human) \nVALUES ($1, TRUE) \nON CONFLICT (phone_number) \nDO UPDATE SET requires_human = TRUE, updated_at = now();",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "98284be4-33c3-45cb-9abe-172563f1fc7d",
             "name": "Mute AI in DB",
@@ -2631,6 +2714,8 @@
                 -1872,
                 4864
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2666,6 +2751,8 @@
                 -1648,
                 4864
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2696,15 +2783,17 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE chat_sessions \nSET requires_human = FALSE, updated_at = now() \nWHERE phone_number = '{{ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") }}';",
-                "options": {}
+                "query": "UPDATE chat_sessions \nSET requires_human = FALSE, updated_at = now() \nWHERE phone_number = $1;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Extract Message Data').first().json.from.replace(\"@c.us\", \"\") ] }}"
+                }
             },
             "id": "6560c5da-779f-417a-8894-f36f8f61ad51",
             "name": "Unmute AI in DB",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                -4432,
+                -4448,
                 5104
             ],
             "credentials": {
@@ -2742,6 +2831,8 @@
                 -4224,
                 5104
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -2752,8 +2843,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
-                "options": {}
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n$1, $2, $3, $4, $5, now()\n);",
+                "options": {
+                    "queryReplacement": "={{ [   ($node[\"Extract Message Data\"].json.chatId || \"\").replace(\"@c.us\", \"\"),   ($node[\"Extract Message Data\"].json.from || \"\").replace(\"@c.us\", \"\"),   $node[\"Extract Message Data\"].json.sessionId || \"\",   $node[\"Extract Message Data\"].json.userMessage || \"\",   $node[\"Parse Order Intent\"].json.output || \"\" ] }}"
+                }
             },
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
@@ -2773,8 +2866,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ ($node[\"Extract Message Data\"].json.chatId.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.from.replace(\"@c.us\", \"\") || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.sessionId || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Extract Message Data\"].json.userMessage || \"\").toString().replace(/'/g, \"''\") }}',\n  '{{ ($node[\"Parse Order Intent\"].json.output || \"\").toString().replace(/'/g, \"''\") }}',\n  now()\n);",
-                "options": {}
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n$1, $2, $3, $4, $5, now()\n);",
+                "options": {
+                    "queryReplacement": "={{ [   ($node[\"Extract Message Data\"].json.chatId || \"\").replace(\"@c.us\", \"\"),   ($node[\"Extract Message Data\"].json.from || \"\").replace(\"@c.us\", \"\"),   $node[\"Extract Message Data\"].json.sessionId || \"\",   $node[\"Extract Message Data\"].json.userMessage || \"\",   $node[\"Parse Order Intent\"].json.output || \"\" ] }}"
+                }
             },
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.6,
@@ -2794,9 +2889,9 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT \n    product_id, \n    name AS product_name, \n    price AS unit_price, \n    quantity AS stock_available, \n    stock_status\nFROM products\nWHERE $1 != 'NONE' \n  AND (\n    name ILIKE '%' || $1 || '%' \n    OR to_tsvector('english', name) @@ plainto_tsquery('english', $1)\n  )\nLIMIT 3;",
+                "query": "SELECT \n    product_id, \n    name AS product_name, \n    price AS unit_price, \n    quantity AS stock_available, \n    stock_status\nFROM products\nWHERE $1 != 'NONE' \n  AND (\n    name ILIKE '%' || $1 || '%' \n    OR to_tsvector('english', name) @@ plainto_tsquery('english', $1)\n  )\nLIMIT 2;",
                 "options": {
-                    "queryReplacement": "=[\"{{ $json.content.parts[0].text }}\"]"
+                    "queryReplacement": "={{ [\n  $json.content.parts[0].text\n] }}"
                 }
             },
             "type": "n8n-nodes-base.postgres",
@@ -2838,7 +2933,7 @@
                 "messages": {
                     "values": [
                         {
-                            "content": "=You are a strict product keyword extractor.\nUser Message: \"{{ $('Extract Message Data').first().json.userMessage }}\"\n\nTask: Extract the core product noun the user is asking about (e.g., \"onesie\", \"beanie\", \"swaddle\", \"towel\").\nRules:\n1. Output ONLY a single word or short phrase. No punctuation.\n2. Remove plurals (e.g., change \"onesies\" to \"onesie\").\n3. Do not include quantities or conversational filler.\n4. If absolutely no product is mentioned, output exactly: NONE"
+                            "content": "=={{ `You are a strict product keyword extractor.\n\nRecent Conversation Context: \n${$('Format Conversation History').first().json.conversationHistory || \"No previous history.\"}\n\nLatest User Message: \"${$('Extract Message Data').first().json.userMessage}\"\n\nTask: Extract the core product noun the user is currently trying to purchase or inquire about (e.g., \"onesie\", \"beanie\", \"bib\").\n\nRules:\n1. Output ONLY a single word or short phrase. No punctuation.\n2. Look at the Recent Conversation Context to determine what product they want, even if their Latest User Message is just an email, name, or confirmation (e.g. \"yes\", \"here is my email\").\n3. Remove plurals (e.g., change \"onesies\" to \"onesie\").\n4. If absolutely no product has been discussed in the conversation yet, output exactly: NONE` }}"
                         }
                     ]
                 },
@@ -2848,11 +2943,13 @@
             "type": "@n8n/n8n-nodes-langchain.googleGemini",
             "typeVersion": 1.2,
             "position": [
-                -3888,
+                -3904,
                 5712
             ],
             "id": "09cf1c90-6be9-4780-be1c-5ecb83898730",
             "name": "Message a model1",
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googlePalmApi": {
                     "id": "MUMZYgHqE8cLz0bk",
@@ -2922,6 +3019,8 @@
                 880,
                 7296
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googlePalmApi": {
                     "id": "MUMZYgHqE8cLz0bk",
@@ -2932,8 +3031,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE orders \nSET post_sale_nurture_sent = TRUE,\n    post_sale_nurtured_at = NOW()\nWHERE order_id = '{{ $('Fetch Eligible Orders').item.json.order_id }}';",
-                "options": {}
+                "query": "UPDATE orders \nSET post_sale_nurture_sent = TRUE,\n    post_sale_nurtured_at = NOW()\nWHERE order_id = $1;",
+                "options": {
+                    "queryReplacement": "={{ [ $('Fetch Eligible Orders').item.json.order_id ] }}"
+                }
             },
             "id": "12d1422e-90b4-4bb1-986c-c880a9269e7e",
             "name": "Mark Order Nurtured",
@@ -2953,8 +3054,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ $('Fetch Eligible Orders').item.json.phone_number }}',\n  '{{ $('Fetch Eligible Orders').item.json.phone_number }}',\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: 30-Day Post-Sale Nurture Sent]',\n  '{{ (typeof $('Draft Upsell Message').item.json.content === \"string\" ? $('Draft Upsell Message').item.json.content : ($('Draft Upsell Message').item.json.content?.parts?.[0]?.text || $('Draft Upsell Message').item.json.text)).replace(/'/g, \"''\") }}',\n  NOW()\n);",
-                "options": {}
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n$1, $2,\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: 30-Day Post-Sale Nurture Sent]',\n  $3,\n  NOW()\n);",
+                "options": {
+                    "queryReplacement": "=  {{ [ $('Fetch Eligible Orders').item.json.phone_number, $('Fetch Eligible Orders').item.json.phone_number, (typeof $('Draft Upsell Message').item.json.content === \"string\" ? $('Draft Upsell Message').item.json.content : ($('Draft Upsell Message').item.json.content?.parts?.[0]?.text || $('Draft Upsell Message').item.json.text)).replace(/'/g, \"''\") ] }}"
+                }
             },
             "id": "b91d94d8-bb93-40db-9e1d-c5b43b83d412",
             "name": "Log Nurture in History",
@@ -2990,8 +3093,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE orders \nSET checkout_opened_at = NOW() \nWHERE order_id = '{{ $('Payment Link Clicked').item.json.query.order_id }}'\n  AND checkout_opened_at IS NULL;",
-                "options": {}
+                "query": "UPDATE orders \nSET order_stage = 'CHECKOUT_OPENED',\n    checkout_opened_at = NOW(),\n    stage_updated_at = NOW()\nWHERE order_id = $1 \n  AND order_stage IN ('DRAFT_QUOTE', 'QUOTE_SENT');",
+                "options": {
+                    "queryReplacement": "={{ [ $('Payment Link Clicked').item.json.query.order_id ] }}"
+                }
             },
             "id": "d9db631d-8a52-4494-b4de-f2d61432ba0e",
             "name": "Log Checkout Opened",
@@ -3051,8 +3156,10 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE orders \nSET payment_status = 'PAID',\n    order_status = 'Processing',\n    updated_at = NOW()\nWHERE order_id = '{{ $json.body.order_id }}';\n",
-                "options": {}
+                "query": "-- 1. Update Order State\nUPDATE orders \nSET payment_status = 'PAID',\n    order_status = 'Processing',\n    order_stage = 'PAID',\n    stage_updated_at = NOW(),\n    updated_at = NOW()\nWHERE order_id = $1;\n\n-- 2. Promote Customer to ACTIVE_BUYER\nUPDATE client\nSET lead_stage = 'ACTIVE_BUYER',\n    stage_updated_at = NOW()\nWHERE phone_number = $2;",
+                "options": {
+                    "queryReplacement": "={{ [ $json.body.order_id ] }}"
+                }
             },
             "id": "1726d853-1efd-466e-bbc2-385a1eb52b52",
             "name": "Mark Order as Paid",
@@ -3097,6 +3204,8 @@
                 896,
                 6912
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -3182,7 +3291,7 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "SELECT \n    o.order_id,\n    o.phone_number,\n    o.product_name,\n    o.quantity,\n    o.unit_price,\n    c.full_name,\n    c.company_name\nFROM orders o\nLEFT JOIN client c ON o.phone_number = c.phone_number\nWHERE o.payment_status = 'UNPAID'\n  AND o.abandonment_nudge_sent = FALSE\n  AND o.checkout_opened_at IS NOT NULL\n  AND o.checkout_opened_at::timestamptz <= NOW() - INTERVAL '2 hours'\nORDER BY o.checkout_opened_at::timestamptz ASC\nLIMIT 5;",
+                "query": "WITH abandoned AS (\n    SELECT \n        o.order_id,\n        o.phone_number,\n        o.product_name,\n        o.quantity,\n        o.unit_price,\n        c.full_name,\n        c.company_name\n    FROM orders o\n    LEFT JOIN client c ON o.phone_number = c.phone_number\n    WHERE o.order_stage = 'CHECKOUT_OPENED'\n      AND o.stage_updated_at <= NOW() - INTERVAL '2 hours'\n    ORDER BY o.stage_updated_at ASC\n    LIMIT 5\n)\nUPDATE orders o\nSET order_stage = 'CART_ABANDONED'::order_stage_enum,\n    stage_updated_at = NOW(),\n    last_nudge_at = NOW()\nFROM abandoned a\nWHERE o.order_id = a.order_id\nRETURNING a.order_id, a.phone_number, a.product_name, a.quantity, a.unit_price, a.full_name, a.company_name;",
                 "options": {}
             },
             "id": "fe56ee09-0c96-49b8-a613-c039de973588",
@@ -3210,7 +3319,7 @@
                 "messages": {
                     "values": [
                         {
-                            "content": "=You are the WhatsApp B2B Sales Executive for Aim Green Limited.\n\nGenerate a warm, helpful cart abandonment nudge for a wholesale client.\n\nCLIENT DATA:\n- Client Name: {{ $('Fetch Abandoned Carts').item.json.full_name || 'there' }}\n- Company Name: {{ $('Fetch Abandoned Carts').item.json.company_name || 'your business' }}\n- Pending Product: {{ $('Fetch Abandoned Carts').item.json.product_name }}\n- Pending Quantity: {{ $('Fetch Abandoned Carts').item.json.quantity }} units\n- Cart Value: ৳{{ $('Fetch Abandoned Carts').item.json.quantity * $('Fetch Abandoned Carts').item.json.unit_price }}\n\nDIRECTIVES:\n1. Tone: Friendly, B2B, helpful, NOT desperate.\n2. Structure: \n   - Note that their checkout link for the {{ $('Fetch Abandoned Carts').item.json.product_name }} is still open.\n   - Ask if they ran into any technical issues or need help adjusting the invoice.\n3. Length: Max 2-3 sentences. Suitable for WhatsApp formatting.\n4. Output: Return ONLY the exact text message to send. No quotes, formatting explanations, or tag blocks."
+                            "content": "=You are the WhatsApp B2B Sales Executive for Aim Green Limited.\n\nGenerate a warm, helpful cart abandonment nudge for a wholesale client.\n\nCLIENT DATA:\n- Client Name: {{ $json.full_name || 'there' }}\n- Company Name: {{ $json.company_name || 'your business' }}\n- Pending Product: {{ $json.product_name }}\n- Pending Quantity: {{ $json.quantity }} units\n- Cart Value: ৳{{ $json.quantity * $json.unit_price }}\n\nDIRECTIVES:\n1. Tone: Friendly, B2B, helpful, NOT desperate.\n2. Structure: \n   - Note that their checkout link for the {{ $json.product_name }} is still open.\n   - Ask if they ran into any technical issues or need help adjusting the invoice.\n3. Length: Max 2-3 sentences. Suitable for WhatsApp formatting.\n4. Output: Return ONLY the exact text message to send. No quotes, formatting explanations, or tag blocks."
                         }
                     ]
                 },
@@ -3222,9 +3331,11 @@
             "type": "@n8n/n8n-nodes-langchain.googleGemini",
             "typeVersion": 1.2,
             "position": [
-                896,
-                7696
+                1296,
+                7680
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "googlePalmApi": {
                     "id": "MUMZYgHqE8cLz0bk",
@@ -3235,37 +3346,18 @@
         {
             "parameters": {
                 "operation": "executeQuery",
-                "query": "UPDATE orders \nSET abandonment_nudge_sent = TRUE,\n    nudge_sent_at = NOW()\nWHERE order_id = '{{ $('Fetch Abandoned Carts').item.json.order_id }}';",
-                "options": {}
-            },
-            "id": "ddc02129-2164-4fb3-abe3-b1ef872e909f",
-            "name": "Mark Cart Nudged",
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.5,
-            "position": [
-                1440,
-                7696
-            ],
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  $1, $2,\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: Cart Abandonment Nudge Sent]',\n  $3,\n  NOW()\n);",
+                "options": {
+                    "queryReplacement": "={{ [ $('Loop').item.json.phone_number, $('Loop').item.json.phone_number, (typeof $('Draft Nudge Message').first().json.content === \"string\" ? $('Draft Nudge Message').first().json.content : ($('Draft Nudge Message').first().json.content?.parts?.[0]?.text || $('Draft Nudge Message').first().json.text)).replace(/'/g, \"''\") ] }}"
                 }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n  '{{ $('Fetch Abandoned Carts').item.json.phone_number }}',\n  '{{ $('Fetch Abandoned Carts').item.json.phone_number }}',\n  '826775a3-abd6-4419-9203-a65c6ab5717c',\n  '[AUTOMATED SYSTEM EVENT: Cart Abandonment Nudge Sent]',\n  '{{ (typeof $('Draft Nudge Message').item.json.content === \"string\" ? $('Draft Nudge Message').item.json.content : ($('Draft Nudge Message').item.json.content?.parts?.[0]?.text || $('Draft Nudge Message').item.json.text)).replace(/'/g, \"''\") }}',\n  NOW()\n);",
-                "options": {}
             },
             "id": "093e3f7e-aed0-4120-8105-dcb11b021a3b",
             "name": "Log Nudge in History",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 2.5,
             "position": [
-                1648,
-                7696
+                1872,
+                7680
             ],
             "credentials": {
                 "postgres": {
@@ -3278,7 +3370,7 @@
             "parameters": {
                 "content": "# Cart Abandonment Recovery",
                 "height": 400,
-                "width": 1472,
+                "width": 1632,
                 "color": "#0A57F0"
             },
             "type": "n8n-nodes-base.stickyNote",
@@ -3318,6 +3410,8 @@
                 1200,
                 7296
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
@@ -3342,7 +3436,7 @@
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{ {\n  \"chatId\": String($('Fetch Abandoned Carts').item.json.phone_number) + \"@c.us\",\n  \"text\": typeof $('Draft Nudge Message').item.json.content === 'string' ? $('Draft Nudge Message').item.json.content : ($('Draft Nudge Message').item.json.content?.parts?.[0]?.text || $('Draft Nudge Message').item.json.text)\n} }}",
+                "jsonBody": "={\n  \"chatId\": \"{{ $('Loop').item.json.phone_number }}@c.us\",\n  \"text\": \"{{ typeof $json.content === 'string' ? $json.content : ($json.content?.parts?.[0]?.text || $json.text) }}\"\n}",
                 "options": {}
             },
             "id": "297a3577-068d-49bf-a478-ece877353c37",
@@ -3350,15 +3444,64 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1232,
-                7696
+                1632,
+                7680
             ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
             "credentials": {
                 "httpHeaderAuth": {
                     "id": "fRdKJONX9P8WAPgZ",
                     "name": "Header Auth openwa"
                 }
             }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                1104,
+                7680
+            ],
+            "id": "92a85d4a-ce5a-493e-9725-c642aa3bc52e",
+            "name": "Loop"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "74ecde4c-6eae-48e0-bd96-2b212a741bab",
+                            "leftValue": "={{ $json.order_id }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "notEmpty",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                864,
+                7696
+            ],
+            "id": "70358bce-a607-4256-ad16-00cb600029fe",
+            "name": "Any Carts Found?"
         }
     ],
     "pinData": {},
@@ -4520,7 +4663,7 @@
             "main": [
                 [
                     {
-                        "node": "Draft Nudge Message",
+                        "node": "Any Carts Found?",
                         "type": "main",
                         "index": 0
                     }
@@ -4532,17 +4675,6 @@
                 [
                     {
                         "node": "Cart Abandon Recov Text via OpenWA",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Mark Cart Nudged": {
-            "main": [
-                [
-                    {
-                        "node": "Log Nudge in History",
                         "type": "main",
                         "index": 0
                     }
@@ -4564,7 +4696,41 @@
             "main": [
                 [
                     {
-                        "node": "Mark Cart Nudged",
+                        "node": "Log Nudge in History",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Nudge in History": {
+            "main": [
+                [
+                    {
+                        "node": "Loop",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop": {
+            "main": [
+                [],
+                [
+                    {
+                        "node": "Draft Nudge Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Any Carts Found?": {
+            "main": [
+                [
+                    {
+                        "node": "Loop",
                         "type": "main",
                         "index": 0
                     }
@@ -4577,7 +4743,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "6ae01694-6045-4fa6-abb0-1c6c77c850f7",
+    "versionId": "db089c76-85a4-4197-9fff-983b7431c2cf",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
