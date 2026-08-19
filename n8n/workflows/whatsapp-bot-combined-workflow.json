@@ -3,43 +3,6 @@
     "nodes": [
         {
             "parameters": {
-                "method": "POST",
-                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').item.json.sessionId }}/messages/send-text",
-                "authentication": "genericCredentialType",
-                "genericAuthType": "httpHeaderAuth",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{ { \"chatId\": $('Extract Message Data').item.json.chatId, \"text\": $json.output } }}",
-                "options": {}
-            },
-            "id": "220d9510-df18-4df5-a322-3543ce59fe60",
-            "name": "Send Reply via OpenWA",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                -1392,
-                5936
-            ],
-            "retryOnFail": true,
-            "waitBetweenTries": 2000,
-            "credentials": {
-                "httpHeaderAuth": {
-                    "id": "fRdKJONX9P8WAPgZ",
-                    "name": "Header Auth openwa"
-                }
-            }
-        },
-        {
-            "parameters": {
                 "operation": "executeQuery",
                 "query": "INSERT INTO order_intake_queue (phone_number, extracted_json, processed)\nSELECT \n  $1, $2::jsonb, FALSE\nWHERE $3 = TRUE;",
                 "options": {
@@ -1130,27 +1093,6 @@
         },
         {
             "parameters": {
-                "fields": {
-                    "values": [
-                        {
-                            "name": "system_prompt",
-                            "stringValue": "={{ `You are a helpful B2B booking assistant.\nToday's Date: ${$now.setZone('Asia/Dhaka').toFormat('cccc, MMMM d, yyyy')}\n\nThe client wants to schedule a meeting. Here is our currently busy schedule for the next 7 days:\n\n${$json.busySchedule}\n\nPlease review these busy times and propose two specific open time slots to the client in a friendly tone.\n\nCRITICAL RULES:\n1. OPERATING HOURS: Only propose slots between 10:00 AM and 6:00 PM (Asia/Dhaka time).\n2. BUFFER TIME: Always ensure at least a 15-minute buffer before and after existing busy slots.\n3. WEEKENDS: NEVER propose time slots on Friday. Friday is the weekend in Bangladesh.\n4. YEAR: Ensure all dates reflect the current year (${$now.setZone('Asia/Dhaka').toFormat('yyyy')}).\n5. OUTPUT: Do not use any hidden tags or markdown code blocks. Just write the exact conversational message to send to the client.` }}"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "75775d87-43b5-4790-99fd-ddf0b469c807",
-            "name": "Prepare Negotiator Prompt",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 3.2,
-            "position": [
-                -256,
-                4944
-            ]
-        },
-        {
-            "parameters": {
                 "method": "POST",
                 "url": "=http://openwa:2785/api/sessions/{{ $('Parse Order Intent').first().json.sessionId }}/messages/send-text",
                 "authentication": "genericCredentialType",
@@ -1673,50 +1615,6 @@
             "typeVersion": 1,
             "id": "0865d973-ceb2-421c-b039-e73845f6064a",
             "name": "Sticky Note5"
-        },
-        {
-            "parameters": {
-                "conditions": {
-                    "options": {
-                        "caseSensitive": true,
-                        "leftValue": "",
-                        "typeValidation": "strict",
-                        "version": 3
-                    },
-                    "conditions": [
-                        {
-                            "id": "e2e55d7c-e909-4b0d-b05d-336fc500730c",
-                            "leftValue": "={{ $json.hasMeetingIntent }}",
-                            "rightValue": "",
-                            "operator": {
-                                "type": "boolean",
-                                "operation": "false",
-                                "singleValue": true
-                            }
-                        },
-                        {
-                            "id": "c0b5a0d5-4ff2-4093-ab2d-9feaeb4a66ff",
-                            "leftValue": "={{ $json.hasBookingConfirmation }}",
-                            "rightValue": "",
-                            "operator": {
-                                "type": "boolean",
-                                "operation": "false",
-                                "singleValue": true
-                            }
-                        }
-                    ],
-                    "combinator": "and"
-                },
-                "options": {}
-            },
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 2.3,
-            "position": [
-                -1616,
-                5936
-            ],
-            "id": "a30b884c-d6de-44ec-848d-e0892b834629",
-            "name": "Filter Main Reply"
         },
         {
             "parameters": {
@@ -2424,29 +2322,6 @@
             ],
             "id": "9e73545f-e53a-4aae-a0b9-c58bf1ed09bd",
             "name": "Log Conversation 1",
-            "credentials": {
-                "postgres": {
-                    "id": "8olY1vTNf4hRmiBK",
-                    "name": "Postgres account"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "operation": "executeQuery",
-                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n$1, $2, $3, $4, $5, now()\n);",
-                "options": {
-                    "queryReplacement": "={{ [   ($node[\"Extract Message Data\"].json.chatId || \"\").replace(\"@c.us\", \"\"),   ($node[\"Extract Message Data\"].json.from || \"\").replace(\"@c.us\", \"\"),   $node[\"Extract Message Data\"].json.sessionId || \"\",   $node[\"Extract Message Data\"].json.userMessage || \"\",   $node[\"Parse Order Intent\"].json.output || \"\" ] }}"
-                }
-            },
-            "type": "n8n-nodes-base.postgres",
-            "typeVersion": 2.6,
-            "position": [
-                -1168,
-                5936
-            ],
-            "id": "22395edb-e4ab-408b-b109-5e24c0673677",
-            "name": "Log Conversation 2",
             "credentials": {
                 "postgres": {
                     "id": "8olY1vTNf4hRmiBK",
@@ -4427,7 +4302,7 @@
         },
         {
             "parameters": {
-                "content": "# Quote Generation",
+                "content": "# Company assets inquiry",
                 "height": 448,
                 "width": 1184,
                 "color": "#D505FF"
@@ -4579,28 +4454,162 @@
                 "options": {}
             },
             "id": "64d9c207-a2fd-494e-bab2-d87b9ba76b54",
-            "name": "Prepare Negotiator Prompt1",
+            "name": "Prepare Negotiator Prompt",
             "type": "n8n-nodes-base.set",
             "typeVersion": 1,
             "position": [
                 -944,
                 5568
             ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const firstItem = $('Filter Main Reply').first()\nconst text = firstItem.json.output || \"\";\n\n// Split by two or more newlines and remove any empty chunks\nconst chunks = text.split(/\\n\\n+/).filter(c => c.trim() !== \"\");\n\n// Map each chunk into its own item so the Loop node can process them one by one\nreturn chunks.map(chunk => {\n    return {\n        json: {\n            ...firstItem.json,\n            chunk_text: chunk.trim()\n        }\n    };\n});"
+            },
+            "id": "3520a16e-ae65-443d-bcd6-e1d0b3764ffb",
+            "name": "Split Text into Chunks",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1040,
+                5904
+            ]
+        },
+        {
+            "parameters": {
+                "amount": 2,
+                "unit": "seconds"
+            },
+            "id": "3da6b81b-8f52-4388-8407-e51e13fe36da",
+            "name": "Wait (Typing Delay)",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1,
+            "position": [
+                -432,
+                5984
+            ],
+            "webhookId": "5974b759-3029-49fc-a9c7-82cea293f1e0"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO conversations (chat_id, from_number, session_id, user_message, bot_reply, created_at)\nVALUES (\n$1, $2, $3, $4, $5, now()\n);",
+                "options": {
+                    "queryReplacement": "={{ [   ($node[\"Extract Message Data\"].json.chatId || \"\").replace(\"@c.us\", \"\"),   ($node[\"Extract Message Data\"].json.from || \"\").replace(\"@c.us\", \"\"),   $node[\"Extract Message Data\"].json.sessionId || \"\",   $node[\"Extract Message Data\"].json.userMessage || \"\",   $node[\"Parse Order Intent\"].json.output || \"\" ] }}"
+                }
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                -1296,
+                5904
+            ],
+            "id": "c9e3e277-cbab-4342-beb5-145fd6255897",
+            "name": "Log Conversation ",
+            "credentials": {
+                "postgres": {
+                    "id": "8olY1vTNf4hRmiBK",
+                    "name": "Postgres account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://openwa:2785/api/sessions/{{ $('Extract Message Data').first().json.sessionId }}/messages/send-text",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"chatId\": $('Extract Message Data').first().json.from, \"text\": $json.chunk_text } }}",
+                "options": {}
+            },
+            "id": "b6d8924f-4dbb-44be-b4f1-921b7ac91a03",
+            "name": "Send Reply via OpenWA1",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -176,
+                5984
+            ],
+            "retryOnFail": true,
+            "waitBetweenTries": 2000,
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fRdKJONX9P8WAPgZ",
+                    "name": "Header Auth openwa"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                -704,
+                5904
+            ],
+            "id": "f42b8030-54c5-4614-9c49-077e2ede3d80",
+            "name": "Loop Over Items"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 3
+                    },
+                    "conditions": [
+                        {
+                            "id": "e2e55d7c-e909-4b0d-b05d-336fc500730c",
+                            "leftValue": "={{ $json.hasMeetingIntent }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "false",
+                                "singleValue": true
+                            }
+                        },
+                        {
+                            "id": "c0b5a0d5-4ff2-4093-ab2d-9feaeb4a66ff",
+                            "leftValue": "={{ $json.hasBookingConfirmation }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "false",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.3,
+            "position": [
+                -1552,
+                5904
+            ],
+            "id": "41027fef-38c3-4544-af29-cb4ee7233804",
+            "name": "Filter Main Reply"
         }
     ],
     "pinData": {},
     "connections": {
-        "Send Reply via OpenWA": {
-            "main": [
-                [
-                    {
-                        "node": "Log Conversation 2",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Parse Order Intent": {
             "main": [
                 [
@@ -4625,11 +4634,6 @@
                         "index": 0
                     },
                     {
-                        "node": "Filter Main Reply",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
                         "node": "If Register Intent",
                         "type": "main",
                         "index": 0
@@ -4646,6 +4650,11 @@
                     },
                     {
                         "node": "If Asset Intent",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Filter Main Reply",
                         "type": "main",
                         "index": 0
                     }
@@ -5066,16 +5075,11 @@
             "main": [
                 [
                     {
-                        "node": "Prepare Negotiator Prompt1",
+                        "node": "Prepare Negotiator Prompt",
                         "type": "main",
                         "index": 0
                     }
                 ]
-            ]
-        },
-        "Prepare Negotiator Prompt": {
-            "main": [
-                []
             ]
         },
         "Message a model": {
@@ -5178,17 +5182,6 @@
                 [
                     {
                         "node": "Send WhatsApp Reminder",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Filter Main Reply": {
-            "main": [
-                [
-                    {
-                        "node": "Send Reply via OpenWA",
                         "type": "main",
                         "index": 0
                     }
@@ -6429,11 +6422,78 @@
                 ]
             ]
         },
-        "Prepare Negotiator Prompt1": {
+        "Prepare Negotiator Prompt": {
             "main": [
                 [
                     {
                         "node": "Message a model",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait (Typing Delay)": {
+            "main": [
+                [
+                    {
+                        "node": "Send Reply via OpenWA1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Conversation ": {
+            "main": [
+                [
+                    {
+                        "node": "Split Text into Chunks",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Text into Chunks": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Over Items": {
+            "main": [
+                [],
+                [
+                    {
+                        "node": "Wait (Typing Delay)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Reply via OpenWA1": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter Main Reply": {
+            "main": [
+                [
+                    {
+                        "node": "Log Conversation ",
                         "type": "main",
                         "index": 0
                     }
@@ -6446,7 +6506,7 @@
         "executionOrder": "v1",
         "binaryMode": "separate"
     },
-    "versionId": "dfe92626-9490-4a4f-971d-e6ff50644621",
+    "versionId": "4a82e541-3800-4b0b-934d-78f5357b9541",
     "meta": {
         "templateCredsSetupCompleted": true,
         "instanceId": "3a5bacfee0e1021fdb8195465ac0374bc9e8532ab42ab67d331a2ecaaf73d963"
